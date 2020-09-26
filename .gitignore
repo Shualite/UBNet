@@ -1,0 +1,6 @@
+*.so
+*.pyc
+build
+data_here
+output
+*.pth
