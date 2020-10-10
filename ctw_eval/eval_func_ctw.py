@@ -92,6 +92,8 @@ def eval_ctw(pred_root):
                 fp += 1.0
 
     print(tp, fp, npos)
+    if tp+fp == 0:
+        return None
     precision = tp / (tp + fp)
     recall = tp / npos
     hmean = 0 if (precision + recall) == 0 else 2.0 * precision * recall / (precision + recall)

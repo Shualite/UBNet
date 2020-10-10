@@ -79,7 +79,7 @@ def do_train(
     model.train()
     start_training_time = time.time()
     end = time.time()
-    for iteration, (images, targets, _) in enumerate(data_loader, start_iter):
+    for iteration, (images, targets, img_path) in enumerate(data_loader, start_iter):      
         
         data_time = time.time() - end
         iteration = iteration + 1
@@ -93,7 +93,8 @@ def do_train(
                        [target[1].to(device) for target in targets]]
         else:
             targets = [target.to(device) for target in targets]
-
+        
+        print(img_path)
         loss_dict = model(images, targets)
 
         del targets

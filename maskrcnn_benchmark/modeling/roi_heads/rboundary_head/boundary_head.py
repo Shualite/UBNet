@@ -2,7 +2,7 @@
 import torch
 from torch import nn
 
-from maskrcnn_benchmark.structures.bounding_box import BoxList
+from maskrcnn_benchmark.structures.bounding_box import RBoxList
 
 from .roi_boundary_feature_extractors import make_roi_boundary_feature_extractor
 from .roi_boundary_predictors import make_roi_boundary_predictor
@@ -41,7 +41,7 @@ def keep_only_positive_boxes(boxes):
         boxes (list of BoxList)
     """
     assert isinstance(boxes, (list, tuple))
-    assert isinstance(boxes[0], BoxList)
+    assert isinstance(boxes[0], RBoxList)
     assert boxes[0].has_field("labels")
     positive_boxes = []
     positive_inds = []
@@ -79,14 +79,13 @@ class ROIBOHead(torch.nn.Module):
             losses (dict[Tensor]): During training, returns the losses for the
                 head. During testing, returns an empty dict.
         """
-        # import ipdb;ipdb.set_trace()
         if self.training:
             # during training, only focus on positive boxes
             with torch.no_grad():
                 # proposals = self.loss_evaluator.subsample(proposals, targets)
                 all_proposals = proposals
                 proposals, positive_inds = keep_only_positive_boxes(proposals)
-
+        
         x = self.feature_extractor(features, proposals)
         outputs_x, outputs_y= self.predictor(x)
 
@@ -94,7 +93,7 @@ class ROIBOHead(torch.nn.Module):
             result = self.post_processor(outputs_x, outputs_y, proposals)
 
             return x, result, {}, {}, {}
-
+        # import ipdb;ipdb.set_trace()
         loss_bo, loss_x, loss_y = self.loss_evaluator(proposals, outputs_x, outputs_y, targets)
 
         return x, proposals, dict(loss_bo=loss_bo), dict(loss_bo_x=loss_x), dict(loss_bo_y=loss_y)

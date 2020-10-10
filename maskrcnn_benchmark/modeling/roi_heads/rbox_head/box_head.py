@@ -22,7 +22,7 @@ class ROIBoxHead(torch.nn.Module):
 
         self.cfg = cfg
 
-    def forward(self, features, proposals, targets=None):
+    def forward(self, features, proposals, targets=None, image_tensor=None):
         """
         Arguments:
             features (list[Tensor]): feature-maps from possibly several levels
@@ -36,7 +36,6 @@ class ROIBoxHead(torch.nn.Module):
             losses (dict[Tensor]): During training, returns the losses for the
                 head. During testing, returns an empty dict.
         """
-        
         # if self.cfg.TEST.CASCADE:
         recur_iter = self.cfg.MODEL.ROI_HEADS.RECUR_ITER if self.cfg.TEST.CASCADE else 1
 
@@ -52,7 +51,8 @@ class ROIBoxHead(torch.nn.Module):
 
             # extract features that will be fed to the final classifier. The
             # feature_extractor generally corresponds to the pooler + heads
-            x = self.feature_extractor(features, recur_proposals)
+            
+            x = self.feature_extractor(features, recur_proposals, image_tensor)
             # final classifier that converts the features into predictions
             class_logits, box_regression = self.predictor(x)
 
@@ -67,7 +67,8 @@ class ROIBoxHead(torch.nn.Module):
 
         return (
             x,
-            proposals,
+            # proposals,
+            recur_proposals,
             dict(loss_classifier=loss_classifier, loss_box_reg=loss_box_reg),
         )
 

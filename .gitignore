@@ -4,3 +4,4 @@ build
 data_here
 output
 *.pth
+.history

@@ -86,6 +86,7 @@ class RPNPostProcessor(torch.nn.Module):
 
         # put in the same format as anchors
         objectness = objectness.permute(0, 2, 3, 1).reshape(N, -1)
+        # (N, H*W*A) H*W for each anchor as order
         objectness = objectness.sigmoid()
         box_regression = box_regression.view(N, -1, 5, H, W).permute(0, 3, 4, 1, 2)
         box_regression = box_regression.reshape(N, -1, 5)
@@ -105,7 +106,7 @@ class RPNPostProcessor(torch.nn.Module):
         # print('concat_anchors:', concat_anchors.size(), concat_anchors[:, 2:4])
 
         proposals = self.box_coder.decode(
-            box_regression.view(-1, 5), concat_anchors.view(-1, 5)
+            box_regression.view(-1, 5), concat_anchors.view(-1, 5) 
         )
 
         proposals = proposals.view(N, -1, 5)
@@ -148,13 +149,17 @@ class RPNPostProcessor(torch.nn.Module):
         sampled_boxes = []
         num_levels = len(objectness)
         anchors = list(zip(*anchors))
+
+        # import ipdb;ipdb.set_trace()
         for a, o, b in zip(anchors, objectness, box_regression):
+            # calc regressioned anchor boxes in each feature map
             sampled_boxes.append(self.forward_for_single_feature_map(a, o, b))
 
         boxlists = list(zip(*sampled_boxes))
         boxlists = [cat_boxlist(boxlist) for boxlist in boxlists]
 
         if num_levels > 1:
+            # reduce anchor num in all features into a size(below fpn_post_nms_top_n)
             boxlists = self.select_over_all_levels(boxlists)
 
         # append ground-truth bboxes to proposals

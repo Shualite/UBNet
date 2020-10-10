@@ -50,12 +50,13 @@ class GeneralizedRRCNN(nn.Module):
             raise ValueError("In training mode, targets should be passed")
 
         images = to_image_list(images)
-        # import ipdb;ipdb.set_trace()
 
         features = self.backbone(images.tensors)
+        
         proposals, proposal_losses = self.rpn(images, features, targets)
+
         if self.roi_heads:
-            x, result, detector_losses = self.roi_heads(features, proposals, targets)
+            x, result, detector_losses = self.roi_heads(features, proposals, targets, images.tensors)
         else:
             #self.warm_start -= 1
             # RPN-only models don't have roi_heads

@@ -257,6 +257,31 @@ class RBoxList(object):
 
         return area
 
+    def visualize(self, img):
+        import cv2
+        import torch.nn as nn
+        
+        padding = 200
+        # img, (C, H, W) torch.tensor.dtype=float32
+        # draw self.bbox on img and return
+        img = img - img.min()
+        img = img/img.max()*255.0
+        h, w = img.shape[1:]
+        img = nn.ConstantPad2d(padding=200, value=100)(img)
+        img = img.clone().detach()
+        img = img.cpu().numpy()
+        img = img.transpose((1,2,0))
+        for idx, bbox in enumerate(self.bbox):
+            bbox = bbox.cpu().numpy()
+            # if bbox[0]<=0 or bbox[1]<=0 or bbox[0]>=w or bbox[1]>=h
+            rect = ((bbox[0]+200, bbox[1]+200), (bbox[2], bbox[3]), bbox[4])
+            box = cv2.boxPoints(rect)
+            box = np.int0(box)
+            
+            img = cv2.drawContours(img, [box],-1,(0,0,255),2)
+        return torch.tensor(img.get().transpose(2, 0, 1), dtype=torch.uint8)
+                    
+
     def copy_with_fields(self, fields):
         bbox = RBoxList(self.bbox, self.size, self.mode)
         if not isinstance(fields, (list, tuple)):

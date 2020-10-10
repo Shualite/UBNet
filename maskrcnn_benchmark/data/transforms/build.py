@@ -25,7 +25,6 @@ def build_transforms(cfg, is_train=True):
         max_size = cfg.INPUT.MAX_SIZE_TEST
         # max_size = None
 
-
         flip_prob = 0
         rotate_prob = 0
         rotate_degree = 0
@@ -36,6 +35,26 @@ def build_transforms(cfg, is_train=True):
         mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD, to_bgr255=to_bgr255
     )
 
+    # transform = T.Compose(
+    #     [
+    #         T.RandomCrop(crop_prob),
+
+    #         T.RandomBrightness(crop_prob),
+    #         T.RandomContrast(crop_prob),
+    #         T.RandomHue(crop_prob),
+    #         T.RandomSaturation(crop_prob),
+    #         T.RandomGamma(crop_prob),
+    #         T.Resize(min_size, max_size),
+
+    #         T.RandomHorizontalFlip(flip_prob),
+    #         T.RandomRotation(rotate_prob, rotate_degree),
+            
+    #         T.ToTensor(),
+    #         normalize_transform,
+    #     ]
+    # )
+
+    # for debug
     transform = T.Compose(
         [
             # T.RandomCrop(crop_prob),

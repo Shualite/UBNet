@@ -80,8 +80,9 @@ class PyramidRROIAlign(nn.Module):
         # downsamples by a factor of 2 at each level.
         lvl_min = -torch.log2(torch.tensor(scales[0], dtype=torch.float32)).item()
         lvl_max = -torch.log2(torch.tensor(scales[-1], dtype=torch.float32)).item()
-        self.map_levels = LevelMapper(lvl_min, lvl_max)
+        self.map_levels = LevelMapper(lvl_min, lvl_max, canonical_scale=160)
 
+    # boxes[proposals, 5] -> [proposals, 6]
     def convert_to_roi_format(self, boxes):
         concat_boxes = cat([b.bbox for b in boxes], dim=0)
         device, dtype = concat_boxes.device, concat_boxes.dtype
@@ -92,6 +93,7 @@ class PyramidRROIAlign(nn.Module):
             ],
             dim=0,
         )
+        # add 0
         rois = torch.cat([ids, concat_boxes], dim=1)
         return rois
 
@@ -107,9 +109,9 @@ class PyramidRROIAlign(nn.Module):
         rois = self.convert_to_roi_format(boxes)
         if num_levels == 1:
             return self.poolers[0](x[0], rois)
-
-        levels = self.map_levels(boxes)
-
+        
+        levels = self.map_levels(boxes)    
+        
         num_rois = len(rois)
         num_channels = x[0].shape[1]
         output_size = self.output_size[0]
@@ -122,12 +124,16 @@ class PyramidRROIAlign(nn.Module):
         )
 
         # result = []
-
         for level, (per_level_feature, pooler) in enumerate(zip(x, self.poolers)):
             idx_in_level = torch.nonzero(levels == level).squeeze(1)
             rois_per_level = rois[idx_in_level]
-            result[idx_in_level] = pooler(per_level_feature, rois_per_level)  #  rois_per_level)
-            # result.append(pooler(per_level_feature, rois))
+            result[idx_in_level] = pooler(per_level_feature, rois_per_level)
+            # try:
+            #     result[idx_in_level] = pooler(per_level_feature, rois_per_level)
+            # except RuntimeError:
+            #     print('cuda error 9')
+            #     result[idx_in_level] = pooler(per_level_feature, rois_per_level) 
+            
 
         return result # torch.cat(result, 1)
 
@@ -189,6 +195,7 @@ class Pooler(nn.Module):
         Returns:
             result (Tensor)
         """
+
         num_levels = len(self.poolers)
         rois = self.convert_to_roi_format(boxes)
         if num_levels == 1:

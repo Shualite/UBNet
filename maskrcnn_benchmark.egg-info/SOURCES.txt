@@ -130,6 +130,12 @@ maskrcnn_benchmark/modeling/roi_heads/box_head/inference.py
 maskrcnn_benchmark/modeling/roi_heads/box_head/loss.py
 maskrcnn_benchmark/modeling/roi_heads/box_head/roi_box_feature_extractors.py
 maskrcnn_benchmark/modeling/roi_heads/box_head/roi_box_predictors.py
+maskrcnn_benchmark/modeling/roi_heads/rboundary_head/__init__.py
+maskrcnn_benchmark/modeling/roi_heads/rboundary_head/boundary_head.py
+maskrcnn_benchmark/modeling/roi_heads/rboundary_head/inference.py
+maskrcnn_benchmark/modeling/roi_heads/rboundary_head/loss.py
+maskrcnn_benchmark/modeling/roi_heads/rboundary_head/roi_boundary_feature_extractors.py
+maskrcnn_benchmark/modeling/roi_heads/rboundary_head/roi_boundary_predictors.py
 maskrcnn_benchmark/modeling/roi_heads/rbox_head/__init__.py
 maskrcnn_benchmark/modeling/roi_heads/rbox_head/box_head.py
 maskrcnn_benchmark/modeling/roi_heads/rbox_head/inference.py

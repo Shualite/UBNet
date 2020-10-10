@@ -102,7 +102,7 @@ def boxlist_iou(boxlist1, boxlist2, GPU_ID=0):
         raise RuntimeError(
                 "boxlists should have same image size, got {}, {}".format(boxlist1, boxlist2))
 
-    if boxlist1.bbox.size()[0] < 1 or boxlist1.bbox.size()[0] < 1:
+    if boxlist1.bbox.size()[0] < 1 or boxlist2.bbox.size()[0] < 1:
         raise RuntimeError(
                 "boxlists should have size larger than 0, got {}, {}".format(boxlist1.bbox.size()[0], boxlist1.bbox.size()[0]))
 
@@ -112,6 +112,7 @@ def boxlist_iou(boxlist1, boxlist2, GPU_ID=0):
     box1_np = box1.data.cpu().numpy()
     box2_np = box2.data.cpu().numpy()
 
+    # xywha to xyhwa
     ch_box1 = box1_np.copy()
     ch_box1[:, 2:4] = ch_box1[:, 3:1:-1]
     ch_box2 = box2_np.copy()
@@ -145,18 +146,8 @@ def boxlist_iou(boxlist1, boxlist2, GPU_ID=0):
     '''
     # print('bbox_shape_monitor:', overlaps.shape, boxlist1.bbox.device, boxlist2.bbox.device)
 
-    print(overlaps)
-    print(overlaps.shape)
-    print(overlaps.sum())
-    if np.all(overlaps == 0):
-        overlaps_size = overlaps.shape
-        del overlaps
-        overlaps = np.zeros(overlaps_size, dtype=np.float32)
-
     # overlaps_th = torch.tensor(overlaps).to(boxlist1.bbox.device)
     overlaps_th = torch.from_numpy(overlaps).to(boxlist1.bbox.device)
-
-    import ipdb;ipdb.set_trace()
 
     return overlaps_th
 

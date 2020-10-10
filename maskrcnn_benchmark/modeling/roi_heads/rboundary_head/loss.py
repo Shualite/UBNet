@@ -4,7 +4,7 @@ from torch.nn import functional as F
 
 from maskrcnn_benchmark.layers import smooth_l1_loss
 from maskrcnn_benchmark.modeling.matcher import Matcher
-from maskrcnn_benchmark.structures.boxlist_ops import boxlist_iou
+from maskrcnn_benchmark.structures.rboxlist_ops import boxlist_iou
 from maskrcnn_benchmark.modeling.utils import cat
 
 from maskrcnn_benchmark.modeling.balanced_positive_negative_sampler import (
@@ -74,6 +74,46 @@ def project_masks_on_boxes(segmentation_masks, proposals, discretization_size):
     return torch.stack(masks, dim=0).to(device, dtype=torch.float32)
 
 
+def project_masks_on_rotate_boxes(segmentation_masks, proposals, discretization_size):
+    """
+    Given segmentation masks and the bounding boxes corresponding
+    to the location of the masks in the image, this function
+    crops and resizes the masks in the position defined by the
+    boxes. This prepares the masks for them to be fed to the
+    loss computation as the targets.
+
+    Arguments:
+        segmentation_masks: an instance of SegmentationMask
+        proposals: an instance of BoxList
+    """
+    masks = []
+    M = discretization_size
+    device = proposals.bbox.device
+    # proposals = proposals.convert("xyxy")
+    assert segmentation_masks.size == proposals.size, "{}, {}".format(
+        segmentation_masks, proposals
+    )
+    # TODO put the proposals on the CPU, as the representation for the
+    # masks is not efficient GPU-wise (possibly several small tensors for
+    # representing a single instance mask)
+    proposals = proposals.bbox.to(torch.device("cpu"))
+    for segmentation_mask, proposal in zip(segmentation_masks, proposals):
+        # crop the masks, resize them to the desired resolution and
+        # then convert them to the tensor representation,
+        # instead of the list representation that was used
+
+        # Rotate to horizontal
+        rotated_mask = segmentation_mask.rotate(-proposal[-1], proposal[0:2])
+        # Crop in horizontal
+        cropped_mask = rotated_mask.crop(proposal)
+        scaled_mask = cropped_mask.resize((M, M))
+        mask = scaled_mask.convert(mode="mask")
+        masks.append(mask)
+    if len(masks) == 0:
+        return torch.empty(0, dtype=torch.float32, device=device)
+    return torch.stack(masks, dim=0).to(device, dtype=torch.float32)
+
+
 def project_kes_to_heatmap(kes, mty, proposals, discretization_size):
     proposals = proposals.convert('xyxy')
     out_x, out_y, valid_x, valid_y, out_mty, valid_mty = kes_to_heat_map(kes.kes_x, kes.kes_y, mty.mty, proposals.bbox, discretization_size)
@@ -99,7 +139,6 @@ def balance_ce_loss(pre_mk, target_mk):
     neg_num = torch.sum(1 - pos_inds).float()
     loss = -(target_mk * torch.log(pre_mk + 1e-4)) / pos_num - ((1 - target_mk) * torch.log(1 - pre_mk + 1e-4)) / neg_num
     return loss.sum()
-
 
 def edge_loss(input, target):
     n, c, h, w = input.size()
@@ -169,7 +208,11 @@ class BORCNNLossComputation(object):
 
             positive_proposals = proposals_per_image[positive_inds]
 
-            masks_per_image = project_masks_on_boxes(
+            # masks_per_image = project_masks_on_boxes(
+            #     segmentation_masks, positive_proposals, self.discretization_size
+            # )
+
+            masks_per_image = project_masks_on_rotate_boxes(
                 segmentation_masks, positive_proposals, self.discretization_size
             )
 
@@ -224,6 +267,17 @@ class BORCNNLossComputation(object):
         Return:
             mask_loss (Tensor): scalar tensor containing the loss
         """
+        # labels
+        # [tensor([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        # 1, 1, 1, 1, 1, 1, 1], device='cuda:0'), tensor([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        # 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        # 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        # 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        # 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        # 1, 1, 1, 1, 1, 1, 1, 1], device='cuda:0')]
+        # mask_targets
+
+        # [batch * [num_proposals*[48,48]]] each 48*48 for 0/1 boundary=1 border=2 others all 0
         labels, mask_targets = self.prepare_targets(proposals, targets)
 
         labels = cat(labels, dim=0)

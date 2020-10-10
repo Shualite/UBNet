@@ -82,6 +82,7 @@ class Matcher(object):
         matches[between_thresholds] = Matcher.BETWEEN_THRESHOLDS
 
         if self.allow_low_quality_matches:
+            # if anchor for small obj too large, the iou will small, so they tend to be Matcher.BELOW_LOW_THRESHOLD, this method to save the maximum iou for them
             self.set_low_quality_matches_(matches, all_matches, match_quality_matrix)
 
         return matches

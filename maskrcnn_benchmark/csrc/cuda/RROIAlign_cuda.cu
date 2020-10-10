@@ -92,15 +92,6 @@ __global__ void RROIAlignForward(
         //int maxidx = -1;
         const T* offset_bottom_data = bottom_data + (roi_batch_ind * channels + c) * height * width;
 
-        //float AB[2];
-        //AB[0] = P[2] - P[0];
-        //AB[1] = P[3] - P[1];
-        //float ABAB = AB[0]*AB[0] +AB[1]*AB[1];
-        //float AC[2];
-        //AC[0] = P[4] - P[0];
-        //AC[1] = P[5] - P[1];
-        //float ACAC = AC[0]*AC[0] + AC[1]*AC[1];
-
         float bin_cx = (leftMost + rightMost) / 2.0; // shift
         float bin_cy = (topMost + bottomMost) / 2.0;
 
@@ -140,47 +131,8 @@ __global__ void RROIAlignForward(
         atomicAdd(top_data + index, static_cast<T>(inter_val));
         atomicAdd(con_idx_x + index, static_cast<float>(bin_cx));
         atomicAdd(con_idx_y + index, static_cast<float>(bin_cy));
-
-        //top_data[index] = static_cast<T>(inter_val);
-        //con_idx_x[index] = bin_cx;
-        //con_idx_y[index] = bin_cy;
-
     }
 }
-
-/**
-int RROIAlignForwardLaucher(
-    const float* bottom_data, const float spatial_scale, const int num_rois, const int height,
-    const int width, const int channels, const int pooled_height,
-    const int pooled_width, const float* bottom_rois,
-    float* top_data, float* con_idx_x, float* con_idx_y, const float* im_info, cudaStream_t stream)
-{
-    const int kThreadsPerBlock = 1024;
-    const int output_size = num_rois * pooled_height * pooled_width * channels;
-    cudaError_t err;
-
-
-    RROIAlignForward<<<(output_size + kThreadsPerBlock - 1) / kThreadsPerBlock, kThreadsPerBlock, 0, stream>>>(
-      output_size, bottom_data, spatial_scale, height, width, channels, pooled_height,
-      pooled_width, bottom_rois, top_data, con_idx_x, con_idx_y, im_info);
-
-    err = cudaGetLastError();
-    if(cudaSuccess != err)
-    {
-        fprintf( stderr, "RRoI forward cudaCheckError() failed : %s\n", cudaGetErrorString( err ) );
-        exit( -1 );
-    }
-
-    return 1;
-}
-*/
-//ROIAlign_forward_cuda
-
-//std::tuple<at::Tensor, at::Tensor> ROIPool_forward_cuda(const at::Tensor& input,
-//                                const at::Tensor& rois,
-//                                const float spatial_scale,
-//                                const int pooled_height,
-//                                const int pooled_width)
 
 std::tuple<at::Tensor, at::Tensor, at::Tensor> RROIAlign_forward_cuda(
                                   const at::Tensor& input,
@@ -189,8 +141,6 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> RROIAlign_forward_cuda(
                                   const int pooled_height,
                                   const int pooled_width)
 {
-
-
     AT_ASSERTM(input.type().is_cuda(), "input must be a CUDA tensor");
     AT_ASSERTM(rois.type().is_cuda(), "rois must be a CUDA tensor");
 
@@ -371,40 +321,3 @@ at::Tensor RROIAlign_backward_cuda(const at::Tensor& grad,
   THCudaCheck(cudaGetLastError());
   return grad_input;
 }
-
-/**
-int RROIAlignBackwardLaucher(
-    const float* top_diff,
-    const float spatial_scale,
-    const int batch_size,
-    const int num_rois,
-    const int height,
-    const int width,
-    const int channels,
-    const int pooled_height,
-    const int pooled_width,
-    const float* bottom_rois,
-    float* bottom_diff,
-    const float* con_idx_x,
-    const float* con_idx_y,
-    cudaStream_t stream)
-{
-    const int kThreadsPerBlock = 1024;
-    const int output_size = num_rois * pooled_height * pooled_width * channels;//batch_size * height * width * channels;
-    cudaError_t err;
-
-    RROIAlignBackward<<<(output_size + kThreadsPerBlock - 1) / kThreadsPerBlock, kThreadsPerBlock, 0, stream>>>(
-      output_size, top_diff, con_idx_x, con_idx_y, num_rois, spatial_scale, height, width, channels, pooled_height,
-      pooled_width, bottom_diff, bottom_rois);
-
-    err = cudaGetLastError();
-    if(cudaSuccess != err)
-    {
-        fprintf( stderr, "RRoI backward cudaCheckError() failed : %s\n", cudaGetErrorString( err ) );
-        exit( -1 );
-    }
-
-    return 1;
-}
-*/
-

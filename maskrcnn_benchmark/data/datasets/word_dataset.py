@@ -61,8 +61,7 @@ class WordDataset(torchvision.datasets.coco.CocoDetection):
         return kes_gen_out
 
     def __getitem__(self, idx):
-
-        img, anno = super(WordDataset, self).__getitem__(idx)
+        img, anno, path = super(WordDataset, self).__getitem__(idx)
 
         # filter crowd annotations
         # TODO might be better to add an extra field
@@ -103,7 +102,7 @@ class WordDataset(torchvision.datasets.coco.CocoDetection):
         if self.transforms is not None:
             img, target = self.transforms(img, target)
 
-        return img, target, idx
+        return img, target, idx, path
 
     def get_img_info(self, index):
         img_id = self.id_to_img_map[index]

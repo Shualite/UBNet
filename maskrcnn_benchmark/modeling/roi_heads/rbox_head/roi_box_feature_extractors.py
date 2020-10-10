@@ -67,7 +67,26 @@ class FPN2MLPFeatureExtractor(nn.Module):
         self.fc6 = make_fc(input_size, representation_size, use_gn)
         self.fc7 = make_fc(representation_size, representation_size, use_gn)
 
-    def forward(self, x, proposals):
+    def forward(self, x, proposals, image_tensor):
+        # TODO: RuntimeError: cuda runtime error (9) sometimes
+        
+        # from tensorboardX import SummaryWriter
+        # writer = SummaryWriter('./debug/rroi')
+        # img = image_tensor[0]
+        
+        # img = img - img.min()
+        # img = img/img.max()*255.0
+        # img = nn.ConstantPad2d(padding=200, value=100)(img)
+        # print(img.shape)
+        # img = torch.tensor(img.clone().detach(), dtype=torch.uint8)
+        
+        # writer.add_image('ori_image', img, global_step=10)
+        # img = img.cpu().numpy()
+        # proposals_on_image = proposals[0].visualize(image_tensor[0])
+        # writer.add_image('bbox_image', proposals_on_image, global_step=10)
+        # writer.flush()
+
+
         x = self.pooler(x, proposals)
         x = x.view(x.size(0), -1)
 

@@ -2,7 +2,8 @@ import torch
 import torchvision
 
 from maskrcnn_benchmark.structures.bounding_box import BoxList, RBoxList
-from maskrcnn_benchmark.structures.segmentation_mask import SegmentationMask
+# from maskrcnn_benchmark.structures.segmentation_mask import SegmentationMask
+from maskrcnn_benchmark.structures.segmentation_for_rbox import SegmentationMask
 
 from maskrcnn_benchmark.structures.ke import textKES
 from maskrcnn_benchmark.structures.mty import MTY
@@ -99,10 +100,8 @@ class RWordDataset(torchvision.datasets.coco.CocoDetection):
 
         return [x_ctr, y_ctr, width, height, angle]
 
-
     def __getitem__(self, idx):
-        img, anno = super(RWordDataset, self).__getitem__(idx)
-
+        img, anno, path = super(RWordDataset, self).__getitem__(idx)
         # filter crowd annotations
         # TODO might be better to add an extra field
         anno = [obj for obj in anno if obj["iscrowd"] == 0]
@@ -143,11 +142,12 @@ class RWordDataset(torchvision.datasets.coco.CocoDetection):
         # mark
         target = target.clip_to_image(remove_empty=True)
 
-
+        
         if self.transforms is not None:
             img, target = self.transforms(img, target)
 
-        return img, target, idx
+        return img, target, path
+        # return img, target, idx, path
 
     def get_img_info(self, index):
         img_id = self.id_to_img_map[index]

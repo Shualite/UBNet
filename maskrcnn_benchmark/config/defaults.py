@@ -93,6 +93,8 @@ _C.DATALOADER.SIZE_DIVISIBILITY = 0
 # are not batched with portrait images.
 _C.DATALOADER.ASPECT_RATIO_GROUPING = True
 
+_C.DATALOADER.SHUFFLE = True
+
 
 # ---------------------------------------------------------------------------- #
 # Backbone options

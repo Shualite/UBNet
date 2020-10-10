@@ -20,7 +20,7 @@ def compute_on_dataset(model, data_loader, device, timer=None):
     results_dict = {}
     cpu_device = torch.device("cpu")
     for _, batch in enumerate(tqdm(data_loader)):
-        images, targets, image_ids = batch
+        images, targets, image_ids = batch[0:3]
         images = images.to(device)
         with torch.no_grad():
             if timer:
@@ -70,6 +70,7 @@ def inference(
         expected_results_sigma_tol=4,
         output_folder=None,
 ):
+    
 
     logger = logging.getLogger("maskrcnn_benchmark.inference")
     dataset = data_loader.dataset
@@ -133,5 +134,5 @@ def inference(
             predictions=predictions,
             output_folder=output_folder,
             **extra_args)
-
+    
     return eval_ctw(os.path.join(cfg.OUTPUT_DIR, 'txt'))

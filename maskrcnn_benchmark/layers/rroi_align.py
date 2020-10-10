@@ -15,6 +15,9 @@ class _RROIAlign(Function):
         ctx.output_size = _pair(output_size)
         ctx.spatial_scale = spatial_scale
         ctx.input_shape = input.size()
+        
+        
+
         total_output = _C.rroi_align_forward(
             input, roi, spatial_scale, output_size[0], output_size[1]
         )
