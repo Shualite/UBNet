@@ -94,7 +94,7 @@ def do_train(
         else:
             targets = [target.to(device) for target in targets]
         
-        print(img_path)
+        # print(img_path)
         loss_dict = model(images, targets)
 
         del targets

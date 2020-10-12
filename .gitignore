@@ -1,7 +1,9 @@
 *.so
 *.pyc
 build
-data_here
+data_here/*.zip
+data_here/CTW_dataset/*_img
+data_here/ic15/*_images
 output
 *.pth
 .history

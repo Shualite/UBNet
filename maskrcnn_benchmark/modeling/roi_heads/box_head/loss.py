@@ -128,14 +128,13 @@ class FastRCNNLossComputation(object):
             classification_loss (Tensor)
             box_loss (Tensor)
         """
-
         class_logits = cat(class_logits, dim=0)
         box_regression = cat(box_regression, dim=0)
         device = class_logits.device
 
         if not hasattr(self, "_proposals"):
             raise RuntimeError("subsample needs to be called before")
-
+        
         proposals = self._proposals
 
         labels = cat([proposal.get_field("labels") for proposal in proposals], dim=0)

@@ -3,6 +3,7 @@ import torch
 
 from .box_head.box_head import build_roi_box_head
 from .boundary_head.boundary_head import build_roi_boundary_head
+from .ub_head.ub_head import build_roi_ub_head
 class CombinedROIHeads(torch.nn.ModuleDict):
     """
     Combines a set of individual heads (for box prediction or masks) into a single
@@ -40,6 +41,20 @@ class CombinedROIHeads(torch.nn.ModuleDict):
             losses.update(loss_bo_x)
             losses.update(loss_bo_y)
 
+        # import ipdb;ipdb.set_trace()
+        if self.cfg.MODEL.UB_ON:
+            ub_features = features
+            if (
+                self.training
+                and self.cfg.MODEL.ROI_UB_HEAD.SHARE_BOX_FEATURE_EXTRACTOR
+            ):
+                ub_features = x
+            # proposals include detections
+            x, detections, loss_bo, loss_bo_x, loss_bo_y = self.ub(ub_features, detections, targets)
+            losses.update(loss_bo)
+            losses.update(loss_bo_x)
+            losses.update(loss_bo_y)
+
         losses = {prefix + k: losses[k] for k in losses}
 
         return x, detections, losses
@@ -48,7 +63,6 @@ class CombinedROIHeads(torch.nn.ModuleDict):
 def build_roi_heads(cfg, in_channels):
     # individually create the heads, that will be combined together
     # afterwards
-    
 
     roi_heads = []
     if cfg.MODEL.RETINANET_ON:
@@ -56,8 +70,10 @@ def build_roi_heads(cfg, in_channels):
 
     if not cfg.MODEL.RPN_ONLY:
         roi_heads.append(("box", build_roi_box_head(cfg, in_channels)))
-    if cfg.MODEL.BOUNDARY_ON:
-        roi_heads.append(("bound", build_roi_boundary_head(cfg, in_channels)))
+    # if cfg.MODEL.BOUNDARY_ON:
+    #     roi_heads.append(("bound", build_roi_boundary_head(cfg, in_channels)))
+    if cfg.MODEL.ROI_UB_HEAD:
+        roi_heads.append(("ub", build_roi_ub_head(cfg, in_channels)))
     # combine individual heads in a single module
     if roi_heads:
         roi_heads = CombinedROIHeads(cfg, roi_heads)
