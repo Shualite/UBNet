@@ -94,9 +94,9 @@ class ROIUBHead(torch.nn.Module):
 
             return x, result, {}, {}, {} 
 
-        loss_bo, loss_x, loss_y = self.loss_evaluator(proposals, ub_w, ub_h, targets)
+        ub_loss , ub_vertical_loss, ub_horizontal_loss = self.loss_evaluator(proposals, ub_w, ub_h, targets)
 
-        return x, proposals, dict(loss_bo=loss_bo), dict(loss_bo_x=loss_x), dict(loss_bo_y=loss_y)
+        return x, proposals, dict(loss_ub=ub_loss), dict(loss_ub_vertical=ub_vertical_loss), dict(loss_ub_horizontal=ub_horizontal_loss)
 
 
 def build_roi_ub_head(cfg, in_channels):

@@ -46,6 +46,7 @@ class GeneralizedRCNN(nn.Module):
                 like `scores`, `labels` and `mask` (for Mask R-CNN models).
 
         """
+        # import ipdb;ipdb.set_trace()
         if self.training and targets is None:
             raise ValueError("In training mode, targets should be passed")
         

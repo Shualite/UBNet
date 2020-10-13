@@ -7,3 +7,4 @@ data_here/ic15/*_images
 output
 *.pth
 .history
+debug

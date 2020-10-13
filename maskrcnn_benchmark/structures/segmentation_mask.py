@@ -298,6 +298,14 @@ class PolygonInstance(object):
         mask = torch.from_numpy(mask)
         return mask
 
+    # def get_distance(self, grid):
+    #     scaled_polygons = []
+    #     for poly in self.polygons:
+    #         p = poly.clone()
+    #         p[0::2] *= ratio_w
+    #         p[1::2] *= ratio_h
+    #         scaled_polygons.append(p)
+
     def __len__(self):
         return len(self.polygons)
 
@@ -404,6 +412,12 @@ class PolygonList(object):
 
         return BinaryMaskList(masks, size=self.size)
 
+    # def get_distance(self, grid):
+    #     distances = []
+    #     for polygon in self.polygons:
+    #         distances.append(polygon.get_distance(grid))
+    #     return distances
+
     def __len__(self):
         return len(self.polygons)
 
@@ -470,6 +484,9 @@ class SegmentationMask(object):
         self.mode = mode
         self.size = tuple(size)
 
+    def get_size(self):
+        return self.size
+
     def transpose(self, method):
         flipped_instances = self.instances.transpose(method)
         return SegmentationMask(flipped_instances, self.size, self.mode)
@@ -506,6 +523,9 @@ class SegmentationMask(object):
             instances = instances.convert_to_binarymask()
         # If there is only 1 instance
         return instances.masks.squeeze(0)
+
+    # def get_distance(self, grid):
+    #     return self.instances.get_distance(grid)
 
     def __len__(self):
         return len(self.instances)

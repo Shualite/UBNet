@@ -50,10 +50,10 @@ class CombinedROIHeads(torch.nn.ModuleDict):
             ):
                 ub_features = x
             # proposals include detections
-            x, detections, loss_bo, loss_bo_x, loss_bo_y = self.ub(ub_features, detections, targets)
-            losses.update(loss_bo)
-            losses.update(loss_bo_x)
-            losses.update(loss_bo_y)
+            x, detections, loss_ub, loss_ub_vertical, loss_ub_horizontal = self.ub(ub_features, detections, targets)
+            losses.update(loss_ub)
+            losses.update(loss_ub_vertical)
+            losses.update(loss_ub_horizontal)
 
         losses = {prefix + k: losses[k] for k in losses}
 
@@ -70,9 +70,9 @@ def build_roi_heads(cfg, in_channels):
 
     if not cfg.MODEL.RPN_ONLY:
         roi_heads.append(("box", build_roi_box_head(cfg, in_channels)))
-    # if cfg.MODEL.BOUNDARY_ON:
-    #     roi_heads.append(("bound", build_roi_boundary_head(cfg, in_channels)))
-    if cfg.MODEL.ROI_UB_HEAD:
+    if cfg.MODEL.BOUNDARY_ON:
+        roi_heads.append(("bound", build_roi_boundary_head(cfg, in_channels)))
+    if cfg.MODEL.UB_ON:
         roi_heads.append(("ub", build_roi_ub_head(cfg, in_channels)))
     # combine individual heads in a single module
     if roi_heads:

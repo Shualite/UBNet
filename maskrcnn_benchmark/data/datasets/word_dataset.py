@@ -62,7 +62,8 @@ class WordDataset(torchvision.datasets.coco.CocoDetection):
 
     def __getitem__(self, idx):
         img, anno, path = super(WordDataset, self).__getitem__(idx)
-
+        
+        # print(path)
         # filter crowd annotations
         # TODO might be better to add an extra field
         anno = [obj for obj in anno if obj["iscrowd"] == 0]

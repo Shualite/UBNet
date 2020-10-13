@@ -33,8 +33,8 @@ class UBRCNNPredictor(nn.Module):
         self.fc6 = make_fc(input_size, representation_size, use_gn)
         self.fc7 = make_fc(representation_size, representation_size, use_gn)
 
-        self.w_points = nn.Linear(representation_size, cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS * 2)
-        self.h_points = nn.Linear(representation_size, cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS * 2)
+        self.w_points = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS+1) * 2)
+        self.h_points = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS+1) * 2)
         
         # TODO: in case debuff
         for m in self.modules():

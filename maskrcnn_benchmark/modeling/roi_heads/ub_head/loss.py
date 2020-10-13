@@ -37,11 +37,15 @@ def onehot_to_binary_edges(mask, radius):
     mask = (mask > 0).astype(np.uint8)
     return mask
 
-def distance_to_binary_edges(mask):
+def distance_to_binary_edges(mask, grid):
     """
     Converts a segmentation mask (K,H,W) to a binary edgemap (1,H,W)
     """
-    H, W = mask.shape
+    # import ipdb;ipdb.set_trace()
+    W, H = grid
+    border_len = cfg.MODEL.ROI_UB_HEAD.BORDER_RATIO
+    w_stride, h_stride = border_len//W, border_len//H
+    distances = {}
 
     mask = np.pad(mask, ((1, 1), (1, 1)), mode='constant', constant_values=0)
     mask = distance_transform_edt(mask)
@@ -51,9 +55,42 @@ def distance_to_binary_edges(mask):
 
     edge_pos = np.argwhere(mask==1)
 
-    return mask
+    # from top to bottom
+    horizontal_dis = []
+    for i in range(border_len)[::h_stride]:
+        hori = edge_pos[edge_pos[:,0]==i]
+        if hori.size == 0:
+            horizontal_dis.append([border_len-1, border_len-1])
+            continue
+        left, right = np.min(hori[:,1]), np.max(hori[:,1])
+        right = border_len - 1 - right
+        horizontal_dis.append([left, right])
 
-def project_masks_on_boxes(segmentation_masks, proposals, discretization_size):
+    # from left to right
+    vertical_dis = []
+    for j in range(border_len)[::w_stride]:
+        verti = edge_pos[edge_pos[:,1]==j]
+        if verti.size == 0:
+            vertical_dis.append([border_len-1, border_len-1])
+            continue
+        top, bottom = np.min(verti[:,0]), np.max(verti[:,0])
+        bottom = border_len - 1 - bottom
+        vertical_dis.append([top, bottom])
+
+    horizontal_dis = np.array(horizontal_dis, dtype=np.float32)
+    horizontal_dis = horizontal_dis / (border_len-1)
+    horizontal_dis = torch.tensor(horizontal_dis)
+
+    vertical_dis = np.array(vertical_dis, dtype=np.float32)
+    vertical_dis = vertical_dis / (border_len-1)
+    vertical_dis = torch.tensor(vertical_dis)
+
+    distances['horizontal'] = horizontal_dis
+    distances['vertical'] = vertical_dis
+
+    return horizontal_dis.reshape(-1), vertical_dis.reshape(-1)
+
+def get_rela_distance_from_boxes(segmentation_masks, proposals, discretization_size):
     """
     Given segmentation masks and the bounding boxes corresponding
     to the location of the masks in the image, this function
@@ -65,8 +102,11 @@ def project_masks_on_boxes(segmentation_masks, proposals, discretization_size):
         segmentation_masks: an instance of SegmentationMask
         proposals: an instance of BoxList
     """
-    masks = []
+    # import ipdb;ipdb.set_trace()
+
     distances = []
+    horizontals = []
+    verticals = []
     M = discretization_size
 
     W = cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS
@@ -77,7 +117,7 @@ def project_masks_on_boxes(segmentation_masks, proposals, discretization_size):
     assert segmentation_masks.size == proposals.size, "{}, {}".format(
         segmentation_masks, proposals
     )
-
+    
     # FIXME: CPU computation bottleneck, this should be parallelized
     proposals = proposals.bbox.to(torch.device("cpu"))
     for segmentation_mask, proposal in zip(segmentation_masks, proposals):
@@ -85,20 +125,21 @@ def project_masks_on_boxes(segmentation_masks, proposals, discretization_size):
         # then convert them to the tensor representation.
         cropped_mask = segmentation_mask.crop(proposal)
 
+        # W, H = cropped_mask.get_size()
         # TODO: maybe need to exchange
-        scaled_mask = cropped_mask.resize((W, H))
+        scaled_mask = cropped_mask.resize((M, M))
         mask = scaled_mask.get_mask_tensor()
         mask = mask.numpy().astype(np.uint8)
 
-        distance = distance_to_binary_edges(mask)
-
-        distances.append(distance)
-    if len(masks) == 0:
+        horizontal, vertical = distance_to_binary_edges(mask, (W, H))
+        horizontals.append(horizontal)
+        verticals.append(vertical)
+        
+    assert len(horizontals) == len(segmentation_masks) and len(verticals) == len(segmentation_masks)
+    if len(horizontals) == 0 or len(verticals) == 0:
         return torch.empty(0, dtype=torch.float32, device=device)
-    return torch.stack(masks, dim=0).to(device, dtype=torch.float32)
+    return torch.stack(horizontals, dim=0).to(device, dtype=torch.float32), torch.stack(verticals, dim=0).to(device, dtype=torch.float32)
 
-def get_rela_distance_from_boxes(segmentation_masks, proposals, discretization_size):
-    pass
 
 def project_kes_to_heatmap(kes, mty, proposals, discretization_size):
     proposals = proposals.convert('xyxy')
@@ -171,7 +212,6 @@ class UBRCNNLossComputation(object):
 
     def prepare_targets(self, proposals, targets):
         labels = []
-        masks = []
         distances = []
         for proposals_per_image, targets_per_image in zip(proposals, targets):
             matched_targets = self.match_targets_to_proposals(
@@ -196,20 +236,15 @@ class UBRCNNLossComputation(object):
             positive_proposals = proposals_per_image[positive_inds]
 
             # TODO: get distance dict per image
-            masks_per_image = project_masks_on_boxes(
-                segmentation_masks, positive_proposals, self.discretization_size
-            )
-
             distances_per_image = get_rela_distance_from_boxes(
                 segmentation_masks, positive_proposals, self.discretization_size
             )
 
 
             labels.append(labels_per_image)
-            masks.append(masks_per_image)
             distances.append(distances_per_image)
 
-        return labels, masks
+        return labels, distances
 
     def subsample(self, proposals, targets):
         """
@@ -247,7 +282,7 @@ class UBRCNNLossComputation(object):
         self._proposals = proposals
         return proposals
 
-    def __call__(self, proposals, ke_logits_x, ke_logits_y, targets):
+    def __call__(self, proposals, logits_vertical, logits_horizontal, targets):
         """
         Arguments:
             proposals (list[BoxList])
@@ -257,24 +292,38 @@ class UBRCNNLossComputation(object):
         Return:
             mask_loss (Tensor): scalar tensor containing the loss
         """
-        import ipdb;ipdb.set_trace()
+        # import ipdb;ipdb.set_trace()
         
-        labels, mask_targets = self.prepare_targets(proposals, targets)
+        labels, distance_targets = self.prepare_targets(proposals, targets)
 
         labels = cat(labels, dim=0)
-        mask_targets = cat(mask_targets, dim=0)
+        distance_targets = cat(distance_targets, dim=0)
         positive_inds = torch.nonzero(labels > 0).squeeze(1)
 
-        if mask_targets.numel() == 0:
+        if distance_targets[0].numel() == 0 or distance_targets[1].numel() == 0:
             return 0
 
-        sb, sh, sw = mask_targets.shape
-        mask_loss_x = edge_loss( ke_logits_x[positive_inds, 0].view([sb, 1, sh, sw]), mask_targets.view([sb, 1, sh, sw]))
-        mask_loss_y = edge_loss( ke_logits_y[positive_inds, 0].view([sb, 1, sh, sw]), mask_targets.view([sb, 1, sh, sw]))
+        # sb, sh, sw = mask_targets.shape
+        # mask_loss_x = edge_loss( ke_logits_x[positive_inds, 0].view([sb, 1, sh, sw]), mask_targets.view([sb, 1, sh, sw]))
+        # mask_loss_y = edge_loss( ke_logits_y[positive_inds, 0].view([sb, 1, sh, sw]), mask_targets.view([sb, 1, sh, sw]))
 
-        mask_loss = mask_loss_x + mask_loss_y
+        # mask_loss = mask_loss_x + mask_loss_y
 
-        return mask_loss , mask_loss_x, mask_loss_y
+        ub_vertical_loss = smooth_l1_loss(
+            logits_vertical,
+            distance_targets[1],
+            size_average=False,
+            beta=1,
+        )
+        ub_horizontal_loss = smooth_l1_loss(
+            logits_horizontal,
+            distance_targets[0],
+            size_average=False,
+            beta=1,
+        )
+        ub_loss = (ub_vertical_loss + ub_horizontal_loss) / labels.numel()
+
+        return ub_loss , ub_vertical_loss, ub_horizontal_loss
 
 def make_roi_ub_loss_evaluator(cfg):
     matcher = Matcher(
@@ -288,7 +337,7 @@ def make_roi_ub_loss_evaluator(cfg):
     )
 
     loss_evaluator = UBRCNNLossComputation(
-        matcher, fg_bg_sampler, cfg.MODEL.ROI_UB_HEAD.RESOLUTION, cfg
+        matcher, fg_bg_sampler, cfg.MODEL.ROI_UB_HEAD.BORDER_RATIO, cfg
     )
 
     return loss_evaluator
