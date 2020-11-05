@@ -154,12 +154,9 @@ class RPNModule(torch.nn.Module):
             losses (dict[Tensor]): the losses for the model during training. During
                 testing, it is an empty dict.
         """
-        # import ipdb;ipdb.set_trace()
 
-        # objectness [(b, num anchor per local, 1/4shape, 1/4shape)...]  len(objectness) = 5
-        # rpn_box_regression [(b, num anchor * 18, 1/4shape, 1/4shape)...]  len(rpn_box_regression) = 5
-        objectness, rpn_box_regression = self.head(features)   # len = 5
-        # anchors list[batchsize * list[BoxList * num anchor per local]]
+        objectness, rpn_box_regression = self.head(features)
+        
         anchors = self.anchor_generator(images, features)
 
         if self.training:

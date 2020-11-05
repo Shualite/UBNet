@@ -46,7 +46,7 @@ class GeneralizedRCNN(nn.Module):
                 like `scores`, `labels` and `mask` (for Mask R-CNN models).
 
         """
-        # import ipdb;ipdb.set_trace()
+        
         if self.training and targets is None:
             raise ValueError("In training mode, targets should be passed")
         
@@ -54,8 +54,9 @@ class GeneralizedRCNN(nn.Module):
 
         features = self.backbone(images.tensors)
         proposals, proposal_losses = self.rpn(images, features, targets)
+        
         if self.roi_heads:
-            x, result, detector_losses = self.roi_heads(features, proposals, targets)
+            x, result, detector_losses = self.roi_heads(features, proposals, targets, images)
         else:
             #self.warm_start -= 1
             # RPN-only models don't have roi_heads

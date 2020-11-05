@@ -17,7 +17,9 @@ import numpy as np
 import csv
 from .alfashape import getAlfaShapes
 import torch.nn as nn
+from tensorboardX import SummaryWriter
 
+writer = None
 
 def do_coco_evaluation(
         dataset,
@@ -54,6 +56,12 @@ def do_coco_evaluation(
     if "bo" in iou_types:
         logger.info("Preparing bo results")
         coco_results["bo"] = prepare_for_boundary_segmentation(predictions, dataset)
+    if "ub" in iou_types:
+        if cfg.DEBUG:
+            global writer
+            writer = SummaryWriter('./debug/ubnet')
+        logger.info("Preparing ub results")
+        coco_results["ub"] = prepare_for_ub_regression(predictions, dataset)
     logger.info("Do not apply evaluating predictions")
     for iou_type in iou_types:
         with tempfile.NamedTemporaryFile() as f:
@@ -431,6 +439,232 @@ def prepare_for_boundary_segmentation(predictions, dataset):
             rects = [mask_to_roRect(mask, [image_height, image_width]) for mask in masks]
         if 'CTW' in cfg.DATASETS.TEST[0]:
             contours = [mask_to_contours(mask, [image_height, image_width]) for mask in masks]
+            # output for evaluation
+            write_result_as_txt(image_name, contours, os.path.join(cfg.OUTPUT_DIR, 'txt'))
+            # visualization
+            if cfg.DATASETS.Test_Visual:
+                vis_path = os.path.join(cfg.OUTPUT_DIR, 'vis')
+                if not os.path.exists(vis_path):
+                    os.makedirs(vis_path)
+                im_write = cv2.imread(os.path.join('data_here/CTW_dataset/test_img', im_w_name))[:, :,::-1]
+                for box in contours:
+                    box = np.array(box)
+                    box = np.around(box).astype(np.int32)
+                    cv2.polylines(im_write[:, :, ::-1], [box.astype(np.int32).reshape((-1, 1, 2))], True, color=(0, 255, 0), thickness=2)  # 0,255,255 y 0,255,0 g
+                cv2.imwrite(os.path.join(vis_path, im_w_name), im_write[:, :, ::-1])
+
+        if 'ic15' in cfg.DATASETS.TEST[0]:
+            mapped_labels = [dataset.contiguous_category_id_to_json_id[i] for i in labels]
+            esd = []
+            for k, rect in enumerate(rects):
+                if rect.all() == 0:
+                    continue
+                else:
+                    esd.append(
+                        {
+                            "image_id": original_id,
+                            "category_id": mapped_labels[k],
+                            "seg_rorect": rect.tolist(),
+                            "score": scores[k],
+                        }
+                    )
+            if cfg.PROCESS.PNMS:
+                pnms_thresh = cfg.PROCESS.NMS_THRESH
+                keep = esd_pnms(esd, pnms_thresh)
+                new_esd = []
+                for i in keep:
+                    new_esd.append(esd[i])
+                coco_results.extend(new_esd)
+                # visualization
+                if cfg.DATASETS.Test_Visual:
+                    im_write = cv2.imread(
+                        'path to ic15 test image (must same to paths_catalog.py)' + im_w_name)[
+                               :, :, ::-1]
+                    for i in keep:
+                        box = esd[i]
+                        # print(box)
+                        # assert 1<0
+                        box = np.array(box['seg_rorect'])
+                        box = np.around(box).astype(np.int32)
+                        cv2.polylines(im_write[:, :, ::-1], [box.astype(np.int32).reshape((-1, 1, 2))], True,
+                                      color=(0, 255, 0), thickness=2)  # 0,255,255 y 0,255,0 g
+                    cv2.imwrite('path to visualization' + im_w_name, im_write[:, :, ::-1])
+            else:
+                coco_results.extend(esd)
+
+
+    return coco_results
+
+def ub_to_mask_ic(bo_x, bo_y, name, num):
+
+    # NMS Hmap and Vmap
+    Vmap = _nms_x(bo_x, kernel=5)
+    Hmap = _nms_y(bo_y, kernel=3)
+    Vmap = Vmap[0]
+    Hmap = Hmap[0]
+    ploys_Alfa_x = Vmap.clone().numpy()
+    ploys_Alfa_y = Hmap.clone().numpy()
+
+    # Threshold Hmap and Vmap
+    thresh = 0.5
+    ploys_Alfa_x[ploys_Alfa_x < thresh] = 0
+    ploys_Alfa_x[ploys_Alfa_x >= thresh] = 1
+    ploys_Alfa_y[ploys_Alfa_y < thresh] = 0
+    ploys_Alfa_y[ploys_Alfa_y >= thresh] = 1
+    # Output points with strong texture inforamtion in both maps
+    ploys_Alfa = ploys_Alfa_x + ploys_Alfa_y
+    ploys_Alfa[ploys_Alfa < 2] = 0
+    ploys_Alfa[ploys_Alfa == 2] = 1
+    img_draw = np.zeros([ploys_Alfa_y.shape[-1], ploys_Alfa_y.shape[-1]], dtype=np.uint8)
+
+    # calculate polygon by Alpha-Shape Algorithm
+    if ploys_Alfa.sum() == 0:
+        return img_draw
+    ploys_Alfa_inds = np.argwhere(ploys_Alfa == 1)
+    zero_detect_x = ploys_Alfa_inds[:, 0] - ploys_Alfa_inds[0, 0]
+    zero_detect_y = ploys_Alfa_inds[:, 1] - ploys_Alfa_inds[0, 1]
+    if np.where(zero_detect_x != 0)[0].shape[0] == 0 or np.where(zero_detect_y != 0)[0].shape[0] == 0 or \
+            ploys_Alfa_inds.shape[0] < 4:
+        draw_line = ploys_Alfa_inds[np.newaxis, np.newaxis, :, :]
+        cv2.fillPoly(img_draw, draw_line, 1)
+        return img_draw
+    ploys_Alfa_inds = ploys_Alfa_inds.tolist()
+    ploys_Alfa_inds = [tuple(ploys_Alfa_ind) for ploys_Alfa_ind in ploys_Alfa_inds]
+    lines = getAlfaShapes(ploys_Alfa_inds, alfas=[1])
+    draw_line = np.array(lines)
+    if len(draw_line.shape) == 4:
+        if draw_line.shape[1] == 1:
+            draw_line[0, 0, :, :] = draw_line[0, 0, :, ::-1]
+            cv2.fillPoly(img_draw, draw_line, 1)
+        else:
+            i_draw = 0
+            for draw_l in draw_line[0]:
+                img_draw_new = np.zeros([28, 28], dtype=np.uint8)
+                draw_l = draw_l[np.newaxis, np.newaxis, :, :]
+                cv2.fillPoly(img_draw, np.int32(draw_l), 1)
+                cv2.fillPoly(img_draw_new, np.int32(draw_l), 1)
+                i_draw += 1
+
+    else:
+        for i, line in enumerate(lines[0]):
+            draw_line = np.array(line)
+            draw_line = draw_line[np.newaxis, np.newaxis, :, :]
+            draw_line[0, 0, :, :] = draw_line[0, 0, :, ::-1]
+            cv2.fillPoly(img_draw, draw_line, 1)
+    return img_draw
+
+def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box):
+    border_w = cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS
+    border_h = cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS
+    border_len = cfg.MODEL.ROI_UB_HEAD.BORDER_RATIO
+    w_stride, h_stride = border_len//border_w, border_len//border_h
+
+    img = cv2.imread(path)
+    vis_box = p_temp_box.int()
+    border_map = np.zeros([border_len, border_len], dtype=np.uint8)
+
+    ori_h, ori_w = float(img_info['height']), float(img_info['width'])
+    box_h, box_w = float(p_temp_box[3]-p_temp_box[1]), float(p_temp_box[2]-p_temp_box[0])
+    
+    result_points = []
+
+    vert_points = []
+    hori_points = []
+    for idx, i in enumerate(range(border_len)[::w_stride]):
+        top, down = ub_w[idx]
+        top, down = int(top*border_len), int((1-down)*border_len)
+        if top < down:
+            result_points.insert(0, [i, down])
+            result_points.append([i, top])
+        
+        border_map[top][i] = 255
+        border_map[down][i] = 255
+
+        vert_points.append([i, top])
+        vert_points.append([i, down])
+
+    result_points = np.array(result_points)
+    result_points = result_points * (box_w/border_len, box_h/border_len)
+    result_points = result_points + np.array(p_temp_box[:2])
+
+    for idx, j in enumerate(range(border_len)[::h_stride]):
+        left, right = ub_h[idx]
+        left, right = int(left*border_len), int((1-right)*border_len)
+
+        border_map[j][left] = 125
+        border_map[j][right] = 125
+        hori_points.append([left, j])
+        hori_points.append([right, j])
+    
+    vert_points = np.array(vert_points)
+    hori_points = np.array(hori_points)
+    vert_points = vert_points * (box_w/border_len, box_h/border_len)
+    # vert_points = vert_points + np.array(p_temp_box[:2])
+    hori_points = hori_points * (box_w/border_len, box_h/border_len)
+    # hori_points = hori_points + np.array(p_temp_box[:2])
+
+    
+    crop_img = img[vis_box[1]:vis_box[3], vis_box[0]:vis_box[2],:] 
+    crop_img = crop_img * 0.4
+    crop_img = np.array(crop_img, dtype=np.uint8)
+
+    
+    [cv2.circle(crop_img, tuple(np.array(p, dtype=np.int)), 1, (0,0,255), 1) for p in vert_points]
+    [cv2.circle(crop_img, tuple(np.array(p, dtype=np.int)), 1, (255,0,0), 1) for p in hori_points]
+
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    crop_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB)
+
+    img = img.transpose((2,0,1))
+    crop_img = crop_img.transpose((2,0,1))
+    
+    if cfg.DEBUG:
+        if num==0:
+            writer.add_image(path.split('/')[-1], img, global_step=num)
+        writer.add_image(path.split('/')[-1].split('.')[0]+'_box', crop_img, global_step=num)
+        writer.add_image(path.split('/')[-1].split('.')[0]+'_ub', np.expand_dims(border_map, 0).repeat(3,axis=0), global_step=num)
+        writer.flush()
+
+    return result_points.reshape(-1)
+
+def prepare_for_ub_regression(predictions, dataset):
+    import numpy as np
+    coco_results = []
+
+    for image_id, prediction in tqdm(enumerate(predictions)):
+        original_id = dataset.id_to_img_map[image_id]
+        image_name = dataset.coco.imgs[original_id]["file_name"].split('.')[0]
+        im_w_name = dataset.coco.imgs[original_id]["file_name"]
+        if len(prediction) == 0:
+            continue
+
+        # TODO replace with get_img_info?
+        image_width = dataset.coco.imgs[original_id]["width"]
+        image_height = dataset.coco.imgs[original_id]["height"]
+        prediction = prediction.resize((image_width, image_height))
+        if 'ub_h' not in prediction.fields():
+            continue
+        ub_h = prediction.get_field("ub_h")
+        ub_w = prediction.get_field("ub_w")
+
+
+        if 'ic15' in cfg.DATASETS.TEST[0]:
+            masks = [ub_to_mask_ic(ub_w_single, ub_h_single, dataset.coco.imgs[original_id]["file_name"], number) for
+                     ub_w_single, ub_h_single, number in zip(ub_w, ub_h,list(range(ub_w.shape[0])))]
+        elif 'CTW' in cfg.DATASETS.TEST[0]:
+            contours = [ub_to_contour_ctw(ub_w_single, ub_h_single, os.path.join(dataset.root, dataset.coco.imgs[original_id]["file_name"]), dataset.coco.imgs[original_id], number, p_temp) for
+                     ub_w_single, ub_h_single, number, p_temp in zip(ub_w, ub_h,
+                                                           list(range(ub_w.shape[0])), prediction.bbox)]
+        else:
+            print('Please add your own construction code!')
+            assert 1<0
+        
+        
+        scores = prediction.get_field("scores").tolist()
+        labels = prediction.get_field("labels").tolist()
+        if 'ic15' in cfg.DATASETS.TEST[0]:
+            rects = [mask_to_roRect(mask, [image_height, image_width]) for mask in masks]
+        if 'CTW' in cfg.DATASETS.TEST[0]:
             # output for evaluation
             write_result_as_txt(image_name, contours, os.path.join(cfg.OUTPUT_DIR, 'txt'))
             # visualization

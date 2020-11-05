@@ -8,6 +8,7 @@ from .roi_ub_feature_extractors import make_roi_ub_feature_extractor
 from .roi_ub_predictors import make_roi_ub_predictor
 from .inference import make_roi_ub_post_processor
 from .loss import make_roi_ub_loss_evaluator
+from maskrcnn_benchmark.config import cfg
 
 def keep_only_positive_boxes(boxes):
     """
@@ -63,8 +64,9 @@ class ROIUBHead(torch.nn.Module):
         self.predictor = make_roi_ub_predictor(cfg)
         self.post_processor = make_roi_ub_post_processor(cfg)
         self.loss_evaluator = make_roi_ub_loss_evaluator(cfg)
+        self.use_gaussian = cfg.MODEL.ROI_UB_HEAD.GAUSSIAN
 
-    def forward(self, features, proposals, targets=None):
+    def forward(self, features, proposals, targets=None, images=None):
         """
         Arguments:
             features (list[Tensor]): feature-maps from possibly several levels
@@ -86,17 +88,39 @@ class ROIUBHead(torch.nn.Module):
                 all_proposals = proposals
                 proposals, positive_inds = keep_only_positive_boxes(proposals)
 
+        
+
+        if cfg.DEBUG:
+            import ipdb;ipdb.set_trace()
+            from tensorboardX import SummaryWriter
+            writer = SummaryWriter('./debug/rpn')
+            img = images.tensors[0]
+            
+            img = img - img.min()
+            img = img/img.max()*255.0
+            img = torch.tensor(img.clone().detach(), dtype=torch.uint8)
+            
+            proposals_on_image = proposals[0].visualize(img)
+            writer.add_image('ub_image', proposals_on_image, global_step=10)
+            writer.flush()
+
         x = self.feature_extractor(features, proposals)
-        ub_w, ub_h = self.predictor(x)
+
+        if x.shape[0] == 0:
+            return x, proposals, {}, {}, {}
+
+        predicted = self.predictor(x)
 
         if not self.training:
-            result = self.post_processor(ub_w, ub_h, proposals)
-
+            result = self.post_processor(predicted, proposals, images)
             return x, result, {}, {}, {} 
 
-        ub_loss , ub_vertical_loss, ub_horizontal_loss = self.loss_evaluator(proposals, ub_w, ub_h, targets)
+        ub_loss , ub_vertical_loss, ub_horizontal_loss = self.loss_evaluator(proposals, predicted, targets)
 
-        return x, proposals, dict(loss_ub=ub_loss), dict(loss_ub_vertical=ub_vertical_loss), dict(loss_ub_horizontal=ub_horizontal_loss)
+        if self.use_gaussian:
+            return x, proposals, dict(loss_ub=ub_loss)
+
+        return x, proposals, dict(loss_ub=ub_loss), dict(loss_vertical=ub_vertical_loss), dict(loss_horizontal=ub_horizontal_loss)
 
 
 def build_roi_ub_head(cfg, in_channels):

@@ -60,6 +60,8 @@ def do_train(
         iou_types = ("bbox",)
         if cfg.MODEL.BOUNDARY_ON:
             iou_types = iou_types + ("bo",)
+        if cfg.MODEL.UB_ON:
+            iou_types = iou_types + ("ub",)
         output_folders = [None] * len(cfg.DATASETS.TEST)
         dataset_names = cfg.DATASETS.TEST
         if cfg.OUTPUT_DIR:
@@ -116,10 +118,10 @@ def do_train(
 
         eta_seconds = meters.time.global_avg * (max_iter - iteration)
         eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
-
+        
         losses = losses.float()
         del losses, loss_dict, loss_dict_reduced, losses_reduced
-
+        
         if iteration % 20 == 0 or iteration == max_iter:
             logger.info(
                 meters.delimiter.join(

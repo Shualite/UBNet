@@ -182,6 +182,7 @@ class RandomCrop(object):
 
     def adjust_crop_region(self, crop_region, target):
         keep_indies_ = torch.zeros((len(target)), dtype=torch.uint8)
+        
         while True:
             inter_area = self.intersect_area(crop_region, target.bbox)
             keep_indies = (inter_area > 0)

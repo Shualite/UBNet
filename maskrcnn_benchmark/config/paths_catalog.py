@@ -4,7 +4,7 @@
 import os
 
 class DatasetCatalog(object):
-    DATA_DIR = "/mnt/Data/fsy_SceneTextRec/ContourNet/data_here/"
+    DATA_DIR = "/DATA/disk1/fsy_scenetext/ContourNet_v2/data_here/"
     DATASETS = {
         "ic15_train": (
             'ic15/ic15_train_images',

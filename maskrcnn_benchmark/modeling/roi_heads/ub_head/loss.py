@@ -190,6 +190,14 @@ def edge_loss(input, target):
     # del weight
     return loss
 
+def gaussian_dist_loss(val, mean, var):
+    val = torch.sigmoid(val)
+    var = torch.sigmoid(var)
+    loss = torch.exp(- (val - mean) ** 2.0 / var / 2.0) / torch.sqrt(2.0 * np.pi * var)
+    loss = - torch.log(loss + 1e-9) / 2.0
+    loss = loss.sum() / val.numel()
+    return loss
+
 class UBRCNNLossComputation(object):
     def __init__(self, proposal_matcher, fg_bg_sampler, discretization_size, cfg):
         """
@@ -200,6 +208,8 @@ class UBRCNNLossComputation(object):
         self.proposal_matcher = proposal_matcher
         self.fg_bg_sampler = fg_bg_sampler
         self.discretization_size = discretization_size
+        self.use_gaussian = cfg.MODEL.ROI_UB_HEAD.GAUSSIAN
+        self.delta = cfg.MODEL.ROI_UB_HEAD.Loss_balance
         self.cfg = cfg.clone()
 
     def match_targets_to_proposals(self, proposal, target):
@@ -282,7 +292,7 @@ class UBRCNNLossComputation(object):
         self._proposals = proposals
         return proposals
 
-    def __call__(self, proposals, logits_vertical, logits_horizontal, targets):
+    def __call__(self, proposals, predicted, targets):
         """
         Arguments:
             proposals (list[BoxList])
@@ -292,7 +302,11 @@ class UBRCNNLossComputation(object):
         Return:
             mask_loss (Tensor): scalar tensor containing the loss
         """
-        # import ipdb;ipdb.set_trace()
+        
+        if len(predicted) == 2:
+            ub_w, ub_h = predicted
+        else:
+            ub_w, ub_h, ub_w_var, ub_h_var = predicted
         
         labels, distance_targets = self.prepare_targets(proposals, targets)
 
@@ -309,19 +323,24 @@ class UBRCNNLossComputation(object):
 
         # mask_loss = mask_loss_x + mask_loss_y
 
-        ub_vertical_loss = smooth_l1_loss(
-            logits_vertical,
-            distance_targets[1],
-            size_average=False,
-            beta=1,
-        )
-        ub_horizontal_loss = smooth_l1_loss(
-            logits_horizontal,
-            distance_targets[0],
-            size_average=False,
-            beta=1,
-        )
-        ub_loss = (ub_vertical_loss + ub_horizontal_loss) / labels.numel()
+        if self.use_gaussian:
+            ub_vertical_loss = gaussian_dist_loss(ub_w, distance_targets[1], ub_w_var)
+            ub_horizontal_loss = gaussian_dist_loss(ub_h, distance_targets[0], ub_h_var)
+        else:
+            ub_vertical_loss = smooth_l1_loss(
+                torch.sigmoid(ub_w),
+                distance_targets[1],
+                size_average=False,
+                beta=1,
+            ) / ub_w.numel()
+            ub_horizontal_loss = smooth_l1_loss(
+                torch.sigmoid(ub_h),
+                distance_targets[0],
+                size_average=False,
+                beta=1,
+            ) / ub_h.numel()
+
+        ub_loss = self.delta * (ub_vertical_loss + ub_horizontal_loss) / labels.numel()
 
         return ub_loss , ub_vertical_loss, ub_horizontal_loss
 

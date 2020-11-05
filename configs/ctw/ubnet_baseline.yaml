@@ -1,13 +1,18 @@
-OUTPUT_DIR: "output/mine/ctw_basline/"
+OUTPUT_DIR: "output/slpr/ctw_baseline"
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  # WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
-  WEIGHT: "output/mine/ctw_basline/model_0025000.pth"
+  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+#   WEIGHT: "output/debug/model_0024000.pth"
   BACKBONE:
     CONV_BODY: "R-50-FPN"
   RESNETS:
     BACKBONE_OUT_CHANNELS: 256
   RPN:
+    USE_FPN: True
+    ANCHOR_STRIDE: (4, 8, 16, 32, 64)
+    ASPECT_RATIOS: (0.25, 0.5, 1.0, 2.0, 4.0)
+    RPN_HEAD: "SingleConvRPNHead_1"
+  RRPN:
     USE_FPN: True
     ANCHOR_STRIDE: (4, 8, 16, 32, 64)
     ASPECT_RATIOS: (0.25, 0.5, 1.0, 2.0, 4.0)
@@ -18,25 +23,44 @@ MODEL:
   ROI_BOX_HEAD:
     DEFORMABLE_POOLING: False
     POOLER_RESOLUTION: 7
-    POOLER_SCALES: (0.25, 0.125, 0.0625, 0.03125, 0.015625)
+    POOLER_SCALES: (0.25, 0.125, 0.0625, 0.03125)
     POOLER_SAMPLING_RATIO: 2
     FEATURE_EXTRACTOR: "FPN2MLPFeatureExtractor"
     PREDICTOR: "FPNPredictor"
     NUM_CLASSES: 2
     CLASS_WEIGHT: 1.0
-  ## Boundary
-  BOUNDARY_ON: True
-  ROI_BOUNDARY_HEAD:
+  # ## Boundary
+  # BOUNDARY_ON: True
+  # ROI_BOUNDARY_HEAD:
+  #   DEFORMABLE_POOLING: True
+  #   FEATURE_EXTRACTOR: "BoundaryRCNNFPNFeatureExtractor"
+  #   POOLER_RESOLUTION: 14
+  #   POOLER_SCALES: (0.25, 0.125, 0.0625, 0.03125)
+  #   POOLER_SAMPLING_RATIO: 2
+  #   PREDICTOR: "BoundaryRCNNC4Predictor"
+  #   RESOLUTION: 48
+  #   SHARE_BOX_FEATURE_EXTRACTOR: False
+  #   BO_WEIGHT: 0.1
+  #   Loss_balance: 1.1
+
+  ## uncertainty border estimation
+  UB_ON: True
+  ROI_UB_HEAD:
     DEFORMABLE_POOLING: True
-    FEATURE_EXTRACTOR: "BoundaryRCNNFPNFeatureExtractor"
-    POOLER_RESOLUTION: 14
-    POOLER_SCALES: (0.25, 0.125, 0.0625, 0.03125, 0.015625)
+    FEATURE_EXTRACTOR: "UBRCNNFPNFeatureExtractor"
+    POOLER_RESOLUTION: 7
+    POOLER_SCALES: (0.25, 0.125, 0.0625, 0.03125)
     POOLER_SAMPLING_RATIO: 2
-    PREDICTOR: "BoundaryRCNNC4Predictor"
-    RESOLUTION: 48
+    PREDICTOR: "UBRCNNPredictor"
+    RESOLUTION: 7
+    BORDER_RATIO: 65
+    UB_W_POINTS: 32
+    UB_H_POINTS: 32
     SHARE_BOX_FEATURE_EXTRACTOR: False
     BO_WEIGHT: 0.1
-    Loss_balance: 1.1
+    Loss_balance: 2.0
+  
+  LOGGING: True
 
 PROCESS:
   PNMS: True
@@ -46,6 +70,7 @@ DATASETS:
   TEST: ("CTW1500_test",)
   Test_Visual: True
 DATALOADER:
+  SHUFFLE: False
   NUM_WORKERS: 8
   SIZE_DIVISIBILITY: 32
 SOLVER:
@@ -53,14 +78,15 @@ SOLVER:
   BASE_LR: 0.005
   BIAS_LR_FACTOR: 2
   WEIGHT_DECAY: 0.0001
-  STEPS: (15000, 20000)
-  MAX_ITER: 25000
+  STEPS: (20000, 25000)
+  MAX_ITER: 30000
   IMS_PER_BATCH: 2
   CHECKPOINT_PERIOD: 5000
   EVAL_PERIOD: 1000
   EVAL_BEGIN: 20000
+
 INPUT:
-  MIN_SIZE_TRAIN: (400,600,720,800)
+  MIN_SIZE_TRAIN: (400,600,720,1000,1200)
   MAX_SIZE_TRAIN: 2000
   MIN_SIZE_TEST: 720
   MAX_SIZE_TEST: 1280

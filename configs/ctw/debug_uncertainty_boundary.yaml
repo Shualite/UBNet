@@ -1,7 +1,9 @@
-OUTPUT_DIR: "output/debug/"
+DEBUG: True
+OUTPUT_DIR: "output/debug2/"
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  # WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  WEIGHT: "output/debug2/model_0011000.pth"
   BACKBONE:
     CONV_BODY: "R-50-FPN"
   RESNETS:
@@ -45,6 +47,7 @@ MODEL:
   ## uncertainty border estimation
   UB_ON: True
   ROI_UB_HEAD:
+    GAUSSIAN: True
     DEFORMABLE_POOLING: True
     FEATURE_EXTRACTOR: "UBRCNNFPNFeatureExtractor"
     POOLER_RESOLUTION: 7
@@ -57,8 +60,7 @@ MODEL:
     UB_H_POINTS: 16
     SHARE_BOX_FEATURE_EXTRACTOR: False
     BO_WEIGHT: 0.1
-    Loss_balance: 1.1
-  
+    Loss_balance: 2.0
   LOGGING: True
 
 PROCESS:
@@ -67,22 +69,22 @@ PROCESS:
 DATASETS:
   TRAIN: ("CTW1500_train",)
   TEST: ("CTW1500_test",)
-  Test_Visual: False
+  Test_Visual: True
 DATALOADER:
   SHUFFLE: False
   NUM_WORKERS: 8
   SIZE_DIVISIBILITY: 32
 SOLVER:
   # gpu num = 2
-  BASE_LR: 0.0005
+  BASE_LR: 0.005
   BIAS_LR_FACTOR: 2
   WEIGHT_DECAY: 0.0001
-  STEPS: (15000, 20000)
-  MAX_ITER: 25000
+  STEPS: (20000, 25000)
+  MAX_ITER: 30000
   IMS_PER_BATCH: 1
   CHECKPOINT_PERIOD: 1000
-  EVAL_PERIOD: 1000
-  EVAL_BEGIN: 15000
+  EVAL_PERIOD: 20
+  EVAL_BEGIN: 10000
 
 INPUT:
   MIN_SIZE_TRAIN: (400,600,720,1000,1200)

@@ -9,6 +9,8 @@ from maskrcnn_benchmark.layers import ConvTranspose2d
 from maskrcnn_benchmark import layers
 from maskrcnn_benchmark.modeling.make_layers import make_fc
 
+from maskrcnn_benchmark.config import cfg
+
 class UBRCNNPredictor(nn.Module):
     def __init__(self, cfg):
         super(UBRCNNPredictor, self).__init__()
@@ -33,15 +35,27 @@ class UBRCNNPredictor(nn.Module):
         self.fc6 = make_fc(input_size, representation_size, use_gn)
         self.fc7 = make_fc(representation_size, representation_size, use_gn)
 
-        self.w_points = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS+1) * 2)
-        self.h_points = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS+1) * 2)
-        
         # TODO: in case debuff
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight,
                     mode='fan_out', nonlinearity='relu')
                 nn.init.constant_(m.bias, 0)
+
+        self.w_points = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS+1) * 2)
+        self.h_points = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS+1) * 2)
+
+        self.use_gaussian = cfg.MODEL.ROI_UB_HEAD.GAUSSIAN
+        if self.use_gaussian:
+            self.w_var = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS+1) * 2)
+            self.h_var = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS+1) * 2)
+
+            nn.init.normal_(self.w_var.weight, std=0.001)
+            nn.init.normal_(self.h_var.weight, std=0.001)
+
+            for l in [self.w_var, self.h_var]:
+                nn.init.constant_(l.bias, 0)
+
 
         # TODO: in case debuff
         nn.init.normal_(self.w_points.weight, std=0.001)
@@ -60,8 +74,12 @@ class UBRCNNPredictor(nn.Module):
 
         ub_w = self.w_points(ft)
         ub_h = self.h_points(ft)
-
-        return ub_w, ub_h
+        if self.use_gaussian:
+            ub_w_var = self.w_var(ft)
+            ub_h_var = self.h_var(ft)
+            return [ub_w, ub_h, ub_w_var, ub_h_var]
+        
+        return [ub_w, ub_h]
 
 
 class Conv2d_cd(nn.Module):

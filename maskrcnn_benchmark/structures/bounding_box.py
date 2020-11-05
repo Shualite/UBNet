@@ -552,6 +552,19 @@ class BoxList(object):
         s += "mode={})".format(self.mode)
         return s
 
+    def visualize(self, img):
+        import cv2
+        import torch.nn as nn
+        
+        img = img.cpu().numpy()
+        img = img.transpose((1,2,0))
+        for idx, bbox in enumerate(self.bbox):
+            bbox = bbox.cpu().numpy()
+            bbox = np.array([bbox[0],bbox[1],bbox[2],bbox[1],bbox[2],bbox[3],bbox[0],bbox[3]], dtype=np.int)
+            
+            img = cv2.drawContours(img, [bbox.reshape([-1,1,2])],-1,(0,0,255),2)
+        return torch.tensor(img.get().transpose(2, 0, 1), dtype=torch.uint8)
+
 
 if __name__ == "__main__":
     bbox = BoxList([[0, 0, 10, 10], [0, 0, 5, 5]], (10, 10))

@@ -25,6 +25,19 @@ from maskrcnn_benchmark.utils.imports import import_file
 from maskrcnn_benchmark.utils.logger import setup_logger
 from maskrcnn_benchmark.utils.miscellaneous import mkdir
 
+from torch.backends import cudnn
+import random
+import numpy as np
+
+cudnn.benchmark = False
+cudnn.deterministic = True
+seed = 2345
+torch.manual_seed(seed) 
+torch.cuda.manual_seed(seed)  
+torch.cuda.manual_seed_all(seed) 
+random.seed(seed)
+np.random.seed(seed)
+os.environ['PYTHONHASHSEED'] = str(seed)
 
 def train(cfg, local_rank, distributed):
     model = build_detection_model(cfg)

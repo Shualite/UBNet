@@ -14,6 +14,7 @@ class WordDataset(torchvision.datasets.coco.CocoDetection):
         self, ann_file, root, remove_images_without_annotations, transforms=None
     ):
         super(WordDataset, self).__init__(root, ann_file)
+        self.root = root
         # sort indices for reproducible results
         self.ids = sorted(self.ids)
 
@@ -99,7 +100,6 @@ class WordDataset(torchvision.datasets.coco.CocoDetection):
         # mark
         target = target.clip_to_image(remove_empty=True)
 
-
         if self.transforms is not None:
             img, target = self.transforms(img, target)
 
@@ -115,8 +115,8 @@ if __name__=='__main__':
     from maskrcnn_benchmark.data.transforms import build_transforms
     # from ..transforms import build_transforms
     from maskrcnn_benchmark.config import cfg
-    anno_file = '/mnt/Data/fsy_SceneTextRec/ContourNet/data_here/CTW_dataset/annotations/CTW_train.json'
-    root = '/mnt/Data/fsy_SceneTextRec/ContourNet/data_here/CTW_dataset/train_img'
+    anno_file = '/DATA/disk1/fsy_scenetext/ContourNet_v2/data_here/CTW_dataset/annotations/CTW_train.json'
+    root = '/DATA/disk1/fsy_scenetext/ContourNet_v2/data_here/CTW_dataset/train_img'
     remove_images_without_annotations = True
     transforms = build_transforms(cfg, is_train=True)
     dataset = WordDataset(ann_file=anno_file, root=root, remove_images_without_annotations=remove_images_without_annotations, transforms=transforms)

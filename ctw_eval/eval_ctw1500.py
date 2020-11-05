@@ -4,7 +4,7 @@ import Polygon as plg
 import numpy as np
 import os
 
-pred_root = '/data/ContourNet/output/fpn_semflow/ctw/txt'
+pred_root = '/DATA/disk1/fsy_scenetext/ContourNet_v2/output/ubnet/debug/txt'
 gt_root = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'ctw_gt')
 
 # 1) /data/ContourNet/maskrcnn_benchmark/data/datasets/evaluation/word/word_eval.py  中 60 -》 488 Polygon数据没存
@@ -59,6 +59,8 @@ if __name__ == '__main__':
     pred_list = file_util.read_dir(pred_root)
 
     tp, fp, npos = 0, 0, 0
+
+    import ipdb;ipdb.set_trace()
     
     for pred_path in pred_list:
         preds = get_pred(pred_path)
