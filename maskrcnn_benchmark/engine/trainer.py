@@ -6,6 +6,7 @@ import os
 
 import torch
 import torch.distributed as dist
+from torch import nn
 
 from maskrcnn_benchmark.utils.comm import get_world_size
 from maskrcnn_benchmark.utils.metric_logger import MetricLogger
@@ -14,6 +15,9 @@ from maskrcnn_benchmark.data import make_data_loader
 from maskrcnn_benchmark.config import cfg
 from maskrcnn_benchmark.utils.comm import synchronize, get_rank
 from maskrcnn_benchmark.utils.miscellaneous import mkdir
+
+from tensorboardX import SummaryWriter
+writer = SummaryWriter('./debug/param')
 
 def reduce_loss_dict(loss_dict):
     """
@@ -110,6 +114,36 @@ def do_train(
 
         optimizer.zero_grad()
         losses.backward()
+
+        # for i, (name, param) in enumerate(model.named_parameters()):
+        #     if 'bn' not in name and param.requires_grad:
+        #         writer.add_histogram(str(iteration), param, i)
+        
+
+        # grad0 = [x['params'][0].grad.sum() for x in optimizer.param_groups]
+        # all_grad0 = sum(grad0)
+        # print(all_grad0)
+        # grad0 = torch.tensor(grad0)
+
+        # nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+
+        # if cfg.SOLVER.GRADIENT_CLIP > 0:
+        #     torch.nn.utils.clip_grad_norm(model.parameters(), cfg.SOLVER.GRADIENT_CLIP)
+
+        # grad = [x['params'][0].grad.sum() for x in optimizer.param_groups]
+        # grad_tensors = [x['params'][0].grad for x in optimizer.param_groups]
+        # all_grad = sum(grad)
+        # grad = torch.tensor(grad)
+        # print(grad)
+        # print(all_grad)
+
+        # import ipdb;ipdb.set_trace()
+
+        # if torch.isnan(grad).sum() == 0:
+        #     optimizer.step()
+        # else:
+        #     print(img_path)
+        
         optimizer.step()
 
         batch_time = time.time() - end

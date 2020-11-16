@@ -70,6 +70,7 @@ class UBRCNNPredictor(nn.Module):
         ft = ft.view(ft.size(0), -1)
 
         ft = F.relu(self.fc6(ft))
+        # ft = torch.nn.Dropout(0.5)(ft)
         ft = F.relu(self.fc7(ft))
 
         ub_w = self.w_points(ft)

@@ -46,7 +46,6 @@ class GeneralizedRCNN(nn.Module):
                 like `scores`, `labels` and `mask` (for Mask R-CNN models).
 
         """
-        
         if self.training and targets is None:
             raise ValueError("In training mode, targets should be passed")
         

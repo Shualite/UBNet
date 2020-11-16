@@ -31,18 +31,18 @@ class CombinedROIHeads(torch.nn.ModuleDict):
         x, detections, loss_box = self.box(features, proposals, targets)
         losses.update(loss_box)
 
-        if cfg.DEBUG:
-            from tensorboardX import SummaryWriter
-            writer = SummaryWriter('./debug/rpn')
-            img = images.tensors[0]
+        # if cfg.DEBUG:
+        #     from tensorboardX import SummaryWriter
+        #     writer = SummaryWriter('./debug/rpn')
+        #     img = images.tensors[0]
             
-            img = img - img.min()
-            img = img/img.max()*255.0
-            img = torch.tensor(img.clone().detach(), dtype=torch.uint8)
+        #     img = img - img.min()
+        #     img = img/img.max()*255.0
+        #     img = torch.tensor(img.clone().detach(), dtype=torch.uint8)
             
-            proposals_on_image = detections[0].visualize(img)
-            writer.add_image('bbox_image', proposals_on_image, global_step=10)
-            writer.flush()
+        #     proposals_on_image = detections[0].visualize(img)
+        #     writer.add_image('bbox_image', proposals_on_image, global_step=10)
+        #     writer.flush()
 
         
         if self.cfg.MODEL.BOUNDARY_ON:

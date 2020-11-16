@@ -1,6 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 import torch
 from torch.nn import functional as F
+from torch import nn
 
 from maskrcnn_benchmark.layers import smooth_l1_loss
 from maskrcnn_benchmark.modeling.matcher import Matcher
@@ -193,6 +194,7 @@ def edge_loss(input, target):
 def gaussian_dist_loss(val, mean, var):
     val = torch.sigmoid(val)
     var = torch.sigmoid(var)
+
     loss = torch.exp(- (val - mean) ** 2.0 / var / 2.0) / torch.sqrt(2.0 * np.pi * var)
     loss = - torch.log(loss + 1e-9) / 2.0
     loss = loss.sum() / val.numel()
@@ -317,12 +319,6 @@ class UBRCNNLossComputation(object):
         if distance_targets[0].numel() == 0 or distance_targets[1].numel() == 0:
             return 0
 
-        # sb, sh, sw = mask_targets.shape
-        # mask_loss_x = edge_loss( ke_logits_x[positive_inds, 0].view([sb, 1, sh, sw]), mask_targets.view([sb, 1, sh, sw]))
-        # mask_loss_y = edge_loss( ke_logits_y[positive_inds, 0].view([sb, 1, sh, sw]), mask_targets.view([sb, 1, sh, sw]))
-
-        # mask_loss = mask_loss_x + mask_loss_y
-
         if self.use_gaussian:
             ub_vertical_loss = gaussian_dist_loss(ub_w, distance_targets[1], ub_w_var)
             ub_horizontal_loss = gaussian_dist_loss(ub_h, distance_targets[0], ub_h_var)
@@ -341,7 +337,9 @@ class UBRCNNLossComputation(object):
             ) / ub_h.numel()
 
         ub_loss = self.delta * (ub_vertical_loss + ub_horizontal_loss) / labels.numel()
-
+        
+        # print(ub_vertical_loss)
+        # print(ub_horizontal_loss)
         return ub_loss , ub_vertical_loss, ub_horizontal_loss
 
 def make_roi_ub_loss_evaluator(cfg):

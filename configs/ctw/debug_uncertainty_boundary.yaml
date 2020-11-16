@@ -1,9 +1,11 @@
 DEBUG: True
-OUTPUT_DIR: "output/debug2/"
+OUTPUT_DIR: "output/debug_only_w_var/"
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  # WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
-  WEIGHT: "output/debug2/model_0011000.pth"
+  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  # WEIGHT: "output/debug2/model_0011630.pth"
+  # WEIGHT: "output/debug_only_w_var/model_0025000.pth"
+  STRICT: False
   BACKBONE:
     CONV_BODY: "R-50-FPN"
   RESNETS:
@@ -75,16 +77,17 @@ DATALOADER:
   NUM_WORKERS: 8
   SIZE_DIVISIBILITY: 32
 SOLVER:
+  # GRADIENT_CLIP: 10
   # gpu num = 2
   BASE_LR: 0.005
   BIAS_LR_FACTOR: 2
   WEIGHT_DECAY: 0.0001
   STEPS: (20000, 25000)
   MAX_ITER: 30000
-  IMS_PER_BATCH: 1
-  CHECKPOINT_PERIOD: 1000
-  EVAL_PERIOD: 20
-  EVAL_BEGIN: 10000
+  IMS_PER_BATCH: 2
+  CHECKPOINT_PERIOD: 5000
+  EVAL_PERIOD: 1000
+  EVAL_BEGIN: 20000
 
 INPUT:
   MIN_SIZE_TRAIN: (400,600,720,1000,1200)
@@ -96,6 +99,6 @@ INPUT:
   ROTATE_DEGREE: (0,30,60,90,210,150,180,210,240,270,300,330,360)
 
 TEST:
-  IMS_PER_BATCH: 1
+  IMS_PER_BATCH: 2
   VIS_LOTM : False
   VIS_DIR : "debug/vis_ctw_LOTM4"

@@ -553,7 +553,7 @@ def ub_to_mask_ic(bo_x, bo_y, name, num):
             cv2.fillPoly(img_draw, draw_line, 1)
     return img_draw
 
-def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box):
+def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None, ub_h_var=None):
     border_w = cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS
     border_h = cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS
     border_len = cfg.MODEL.ROI_UB_HEAD.BORDER_RATIO
@@ -573,6 +573,9 @@ def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box):
     for idx, i in enumerate(range(border_len)[::w_stride]):
         top, down = ub_w[idx]
         top, down = int(top*border_len), int((1-down)*border_len)
+
+        top_var, down_var = ub_w_var[idx]
+        
         if top < down:
             result_points.insert(0, [i, down])
             result_points.append([i, top])
@@ -580,8 +583,8 @@ def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box):
         border_map[top][i] = 255
         border_map[down][i] = 255
 
-        vert_points.append([i, top])
-        vert_points.append([i, down])
+        vert_points.append([i, top, top_var])
+        vert_points.append([i, down, down_var])
 
     result_points = np.array(result_points)
     result_points = result_points * (box_w/border_len, box_h/border_len)
@@ -598,7 +601,7 @@ def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box):
     
     vert_points = np.array(vert_points)
     hori_points = np.array(hori_points)
-    vert_points = vert_points * (box_w/border_len, box_h/border_len)
+    vert_points[:, :-1] = vert_points[:, :-1] * (box_w/border_len, box_h/border_len)
     # vert_points = vert_points + np.array(p_temp_box[:2])
     hori_points = hori_points * (box_w/border_len, box_h/border_len)
     # hori_points = hori_points + np.array(p_temp_box[:2])
@@ -609,8 +612,8 @@ def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box):
     crop_img = np.array(crop_img, dtype=np.uint8)
 
     
-    [cv2.circle(crop_img, tuple(np.array(p, dtype=np.int)), 1, (0,0,255), 1) for p in vert_points]
-    [cv2.circle(crop_img, tuple(np.array(p, dtype=np.int)), 1, (255,0,0), 1) for p in hori_points]
+    [cv2.circle(crop_img, tuple(np.array(p[:-1], dtype=np.int)), 1, (0,0,int(255*(1-p[-1]))), 1) for p in vert_points]
+    # [cv2.circle(crop_img, tuple(np.array(p, dtype=np.int)), 1, (255,0,0), 1) for p in hori_points]
 
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     crop_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB)
@@ -630,6 +633,7 @@ def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box):
 def prepare_for_ub_regression(predictions, dataset):
     import numpy as np
     coco_results = []
+    GAUSSIAN = cfg.MODEL.ROI_UB_HEAD.GAUSSIAN
 
     for image_id, prediction in tqdm(enumerate(predictions)):
         original_id = dataset.id_to_img_map[image_id]
@@ -647,18 +651,28 @@ def prepare_for_ub_regression(predictions, dataset):
         ub_h = prediction.get_field("ub_h")
         ub_w = prediction.get_field("ub_w")
 
+        if GAUSSIAN:
+            ub_h_var = prediction.get_field('ub_h_var')
+            ub_w_var = prediction.get_field('ub_w_var')
+
 
         if 'ic15' in cfg.DATASETS.TEST[0]:
             masks = [ub_to_mask_ic(ub_w_single, ub_h_single, dataset.coco.imgs[original_id]["file_name"], number) for
                      ub_w_single, ub_h_single, number in zip(ub_w, ub_h,list(range(ub_w.shape[0])))]
         elif 'CTW' in cfg.DATASETS.TEST[0]:
-            contours = [ub_to_contour_ctw(ub_w_single, ub_h_single, os.path.join(dataset.root, dataset.coco.imgs[original_id]["file_name"]), dataset.coco.imgs[original_id], number, p_temp) for
-                     ub_w_single, ub_h_single, number, p_temp in zip(ub_w, ub_h,
-                                                           list(range(ub_w.shape[0])), prediction.bbox)]
+            if GAUSSIAN:
+                contours = [ub_to_contour_ctw(ub_w_single, ub_h_single, os.path.join(dataset.root, dataset.coco.imgs[original_id]["file_name"]), dataset.coco.imgs[original_id], number, p_temp, ub_w_var_single, ub_h_var_single) for
+                        ub_w_single, ub_h_single, number, p_temp, ub_w_var_single, ub_h_var_single in zip(ub_w, ub_h,
+                        list(range(ub_w.shape[0])), prediction.bbox, ub_w_var, ub_h_var)]
+            else:
+                contours = [ub_to_contour_ctw(ub_w_single, ub_h_single, os.path.join(dataset.root, dataset.coco.imgs[original_id]["file_name"]), dataset.coco.imgs[original_id], number, p_temp) for
+                        ub_w_single, ub_h_single, number, p_temp in zip(ub_w, ub_h,
+                                                            list(range(ub_w.shape[0])), prediction.bbox)]
         else:
             print('Please add your own construction code!')
             assert 1<0
         
+        # import ipdb;ipdb.set_trace()
         
         scores = prediction.get_field("scores").tolist()
         labels = prediction.get_field("labels").tolist()

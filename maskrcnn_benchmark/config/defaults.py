@@ -38,6 +38,7 @@ _C.MODEL.CLS_AGNOSTIC_BBOX_REG = False
 # the path in paths_catalog. Else, it will use it as the specified absolute
 # path
 _C.MODEL.WEIGHT = ""
+_C.MODEL.STRICT = True
 
 
 # -----------------------------------------------------------------------------
@@ -504,6 +505,9 @@ _C.SOLVER.WARMUP_ITERS = 500
 _C.SOLVER.WARMUP_METHOD = "linear"
 
 _C.SOLVER.CHECKPOINT_PERIOD = 2500
+
+
+_C.SOLVER.GRADIENT_CLIP = -1
 
 # Number of images per batch
 # This is global, so if we have 8 GPUs and IMS_PER_BATCH = 16, each GPU will

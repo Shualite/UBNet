@@ -36,8 +36,10 @@ class UBPostProcessor(nn.Module):
             results (list[BoxList]): one BoxList for each image, containing
                 the extra field mask
         """
-        from tensorboardX import SummaryWriter
-        writer = SummaryWriter('./debug/rpn')
+
+
+        # from tensorboardX import SummaryWriter
+        # writer = SummaryWriter('./debug/rpn')
 
 
         if len(predicted) == 2:
@@ -60,59 +62,57 @@ class UBPostProcessor(nn.Module):
         ub_w = ub_w.sigmoid()
         ub_h = ub_h.sigmoid()
 
-        if cfg.DEBUG:
-            import cv2
-            boxes = boxes[0]
-            img = images.tensors[0]
-            img = img - img.min()
-            img = img/img.max()*255.0
-            img = torch.tensor(img.clone().detach(), dtype=torch.uint8)
-            writer.add_image('ori_image', img, global_step=0)
-            img = img.permute((1,2,0))
+        # if cfg.DEBUG:
+        #     import cv2
+        #     boxes = boxes[0]
+        #     img = images.tensors[0]
+        #     img = img - img.min()
+        #     img = img/img.max()*255.0
+        #     img = torch.tensor(img.clone().detach(), dtype=torch.uint8)
+        #     writer.add_image('ori_image', img, global_step=0)
+        #     img = img.permute((1,2,0))
             
 
-            border_w = cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS
-            border_h = cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS
-            border_len = cfg.MODEL.ROI_UB_HEAD.BORDER_RATIO
-            w_stride, h_stride = border_len//border_w, border_len//border_h
+        #     border_w = cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS
+        #     border_h = cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS
+        #     border_len = cfg.MODEL.ROI_UB_HEAD.BORDER_RATIO
+        #     w_stride, h_stride = border_len//border_w, border_len//border_h
 
-            for num, (ub_w_single, ub_h_single, ub_w_var_single, ub_h_var_single, box) in enumerate(zip(ub_w, ub_h, ub_w_var, ub_h_var, boxes.bbox)):
-                box = np.array(box.cpu(), dtype=np.int)
-                box_h, box_w = box[3]-box[1], box[2]-box[0]
-                crop_img = img[box[1]:box[3], box[0]:box[2], :]
-                crop_img = np.array(crop_img, dtype=np.float) * 0.4
-                crop_img = np.array(crop_img, dtype=np.uint8)
+        #     for num, (ub_w_single, ub_h_single, ub_w_var_single, ub_h_var_single, box) in enumerate(zip(ub_w, ub_h, ub_w_var, ub_h_var, boxes.bbox)):
+        #         box = np.array(box.cpu(), dtype=np.int)
+        #         box_h, box_w = box[3]-box[1], box[2]-box[0]
+        #         crop_img = img[box[1]:box[3], box[0]:box[2], :]
+        #         crop_img = np.array(crop_img, dtype=np.float) * 0.4
+        #         crop_img = np.array(crop_img, dtype=np.uint8)
 
-                w_stride, h_stride = float(box_w)/border_w, float(box_h)/border_h
+        #         w_stride, h_stride = float(box_w)/border_w, float(box_h)/border_h
                 
-                vert_points = []
-                hori_points = []
-                for idx, x in enumerate(range(border_w+1)):
-                    top, down = ub_w_single[idx]
-                    top, down = int(top*box_h), int((1-down)*box_h)
-                    vert_points.append([int(round(x*w_stride)), top])
-                    vert_points.append([int(round(x*w_stride)), down])
+        #         vert_points = []
+        #         hori_points = []
+        #         for idx, x in enumerate(range(border_w+1)):
+        #             top, down = ub_w_single[idx]
+        #             top, down = int(top*box_h), int((1-down)*box_h)
+        #             vert_points.append([int(round(x*w_stride)), top])
+        #             vert_points.append([int(round(x*w_stride)), down])
 
-                for idx, y in enumerate(range(border_h+1)):
-                    left, right = ub_h_single[idx]
-                    left, right = int(left*box_w), int((1-right)*box_w)
-                    hori_points.append([left, int(round(y*h_stride))])
-                    hori_points.append([right, int(round(y*h_stride))])
+        #         for idx, y in enumerate(range(border_h+1)):
+        #             left, right = ub_h_single[idx]
+        #             left, right = int(left*box_w), int((1-right)*box_w)
+        #             hori_points.append([left, int(round(y*h_stride))])
+        #             hori_points.append([right, int(round(y*h_stride))])
 
-                vert_points = np.array(vert_points)
-                hori_points = np.array(hori_points)
+        #         vert_points = np.array(vert_points)
+        #         hori_points = np.array(hori_points)
 
-                import ipdb;ipdb.set_trace()
-
-                [cv2.circle(crop_img, tuple(np.array(p, dtype=np.int)), 1, (0,0,255), 1) for p in vert_points]
-                [cv2.circle(crop_img, tuple(np.array(p, dtype=np.int)), 1, (255,0,0), 1) for p in hori_points]
-                crop_img = crop_img.transpose((2,0,1))
-                writer.add_image('_box', crop_img, global_step=num)
-
+        #         crop_img = cv2.cvtColor(crop_img, cv2.COLOR_RGB2BGR)
+        #         [cv2.circle(crop_img, tuple(np.array(p, dtype=np.int)), 1, (0,0,255), 1) for p in vert_points]
+        #         [cv2.circle(crop_img, tuple(np.array(p, dtype=np.int)), 1, (255,0,0), 1) for p in hori_points]
+        #         crop_img = crop_img.transpose((2,0,1))
+        #         writer.add_image('box', crop_img, global_step=num)
                 
             
-            writer.flush()
-            import ipdb;ipdb.set_trace()
+        #     writer.flush()
+        #     import ipdb;ipdb.set_trace()
 
 
         labels = [bbox.get_field("labels") for bbox in boxes]

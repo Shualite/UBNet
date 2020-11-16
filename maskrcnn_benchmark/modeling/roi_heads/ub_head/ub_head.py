@@ -88,32 +88,36 @@ class ROIUBHead(torch.nn.Module):
                 all_proposals = proposals
                 proposals, positive_inds = keep_only_positive_boxes(proposals)
 
-        
-
-        if cfg.DEBUG:
-            import ipdb;ipdb.set_trace()
-            from tensorboardX import SummaryWriter
-            writer = SummaryWriter('./debug/rpn')
-            img = images.tensors[0]
+        # if cfg.DEBUG:
+        #     import ipdb;ipdb.set_trace()
+        #     from tensorboardX import SummaryWriter
+        #     writer = SummaryWriter('./debug/rpn')
+        #     img = images.tensors[0]
             
-            img = img - img.min()
-            img = img/img.max()*255.0
-            img = torch.tensor(img.clone().detach(), dtype=torch.uint8)
+        #     img = img - img.min()
+        #     img = img/img.max()*255.0
+        #     img = torch.tensor(img.clone().detach(), dtype=torch.uint8)
             
-            proposals_on_image = proposals[0].visualize(img)
-            writer.add_image('ub_image', proposals_on_image, global_step=10)
-            writer.flush()
+        #     proposals_on_image = proposals[0].visualize(img)
+        #     writer.add_image('ub_image', proposals_on_image, global_step=10)
+        #     writer.flush()
 
         x = self.feature_extractor(features, proposals)
 
         if x.shape[0] == 0:
-            return x, proposals, {}, {}, {}
+            if self.use_gaussian:
+                return x, proposals, {}
+            else:
+                return x, proposals, {}, {}, {}
 
         predicted = self.predictor(x)
 
         if not self.training:
             result = self.post_processor(predicted, proposals, images)
-            return x, result, {}, {}, {} 
+            if self.use_gaussian:
+                return x, result, {}
+            else:
+                return x, result, {}, {}, {}
 
         ub_loss , ub_vertical_loss, ub_horizontal_loss = self.loss_evaluator(proposals, predicted, targets)
 
