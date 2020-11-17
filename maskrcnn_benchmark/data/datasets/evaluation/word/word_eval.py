@@ -553,7 +553,7 @@ def ub_to_mask_ic(bo_x, bo_y, name, num):
             cv2.fillPoly(img_draw, draw_line, 1)
     return img_draw
 
-def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None, ub_h_var=None):
+def ub_to_contour_ctw(ub_w, path, img_info, num, p_temp_box, ub_w_var=None, ub_h_var=None):
     border_w = cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS
     border_h = cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS
     border_len = cfg.MODEL.ROI_UB_HEAD.BORDER_RATIO
@@ -590,22 +590,19 @@ def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None
     result_points = result_points * (box_w/border_len, box_h/border_len)
     result_points = result_points + np.array(p_temp_box[:2])
 
-    for idx, j in enumerate(range(border_len)[::h_stride]):
-        left, right = ub_h[idx]
-        left, right = int(left*border_len), int((1-right)*border_len)
+    # for idx, j in enumerate(range(border_len)[::h_stride]):
+    #     left, right = ub_h[idx]
+    #     left, right = int(left*border_len), int((1-right)*border_len)
 
-        border_map[j][left] = 125
-        border_map[j][right] = 125
-        hori_points.append([left, j])
-        hori_points.append([right, j])
+    #     border_map[j][left] = 125
+    #     border_map[j][right] = 125
+    #     hori_points.append([left, j])
+    #     hori_points.append([right, j])
     
     vert_points = np.array(vert_points)
-    hori_points = np.array(hori_points)
     vert_points[:, :-1] = vert_points[:, :-1] * (box_w/border_len, box_h/border_len)
-    # vert_points = vert_points + np.array(p_temp_box[:2])
-    hori_points = hori_points * (box_w/border_len, box_h/border_len)
-    # hori_points = hori_points + np.array(p_temp_box[:2])
-
+    # hori_points = hori_points * (box_w/border_len, box_h/border_len)
+    # hori_points = np.array(hori_points)
     
     crop_img = img[vis_box[1]:vis_box[3], vis_box[0]:vis_box[2],:] 
     crop_img = crop_img * 0.4
@@ -646,13 +643,13 @@ def prepare_for_ub_regression(predictions, dataset):
         image_width = dataset.coco.imgs[original_id]["width"]
         image_height = dataset.coco.imgs[original_id]["height"]
         prediction = prediction.resize((image_width, image_height))
-        if 'ub_h' not in prediction.fields():
+        if 'ub_w' not in prediction.fields():
             continue
-        ub_h = prediction.get_field("ub_h")
+        # ub_h = prediction.get_field("ub_h")
         ub_w = prediction.get_field("ub_w")
 
         if GAUSSIAN:
-            ub_h_var = prediction.get_field('ub_h_var')
+            # ub_h_var = prediction.get_field('ub_h_var')
             ub_w_var = prediction.get_field('ub_w_var')
 
 
@@ -661,9 +658,9 @@ def prepare_for_ub_regression(predictions, dataset):
                      ub_w_single, ub_h_single, number in zip(ub_w, ub_h,list(range(ub_w.shape[0])))]
         elif 'CTW' in cfg.DATASETS.TEST[0]:
             if GAUSSIAN:
-                contours = [ub_to_contour_ctw(ub_w_single, ub_h_single, os.path.join(dataset.root, dataset.coco.imgs[original_id]["file_name"]), dataset.coco.imgs[original_id], number, p_temp, ub_w_var_single, ub_h_var_single) for
-                        ub_w_single, ub_h_single, number, p_temp, ub_w_var_single, ub_h_var_single in zip(ub_w, ub_h,
-                        list(range(ub_w.shape[0])), prediction.bbox, ub_w_var, ub_h_var)]
+                contours = [ub_to_contour_ctw(ub_w_single, os.path.join(dataset.root, dataset.coco.imgs[original_id]["file_name"]), dataset.coco.imgs[original_id], number, p_temp, ub_w_var_single) for
+                        ub_w_single, number, p_temp, ub_w_var_single in zip(ub_w,
+                        list(range(ub_w.shape[0])), prediction.bbox, ub_w_var)]
             else:
                 contours = [ub_to_contour_ctw(ub_w_single, ub_h_single, os.path.join(dataset.root, dataset.coco.imgs[original_id]["file_name"]), dataset.coco.imgs[original_id], number, p_temp) for
                         ub_w_single, ub_h_single, number, p_temp in zip(ub_w, ub_h,

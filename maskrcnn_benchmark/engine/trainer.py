@@ -104,6 +104,7 @@ def do_train(
         loss_dict = model(images, targets)
 
         del targets
+        
 
         losses = sum(loss for loss in loss_dict.values())
 
@@ -137,7 +138,6 @@ def do_train(
         # print(grad)
         # print(all_grad)
 
-        # import ipdb;ipdb.set_trace()
 
         # if torch.isnan(grad).sum() == 0:
         #     optimizer.step()

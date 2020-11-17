@@ -1,10 +1,11 @@
+# remark: ub_head make_roi_ub_predictor w_var w_points std=0.01
 DEBUG: True
-OUTPUT_DIR: "output/debug_only_w_var/"
+OUTPUT_DIR: "output/debug_3/"
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  # WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
   # WEIGHT: "output/debug2/model_0011630.pth"
-  # WEIGHT: "output/debug_only_w_var/model_0025000.pth"
+  WEIGHT: "output/debug_only_w_var/model_0020000.pth"
   STRICT: False
   BACKBONE:
     CONV_BODY: "R-50-FPN"
@@ -82,12 +83,12 @@ SOLVER:
   BASE_LR: 0.005
   BIAS_LR_FACTOR: 2
   WEIGHT_DECAY: 0.0001
-  STEPS: (20000, 25000)
-  MAX_ITER: 30000
-  IMS_PER_BATCH: 2
+  STEPS: (30000, 40000)
+  MAX_ITER: 45000
+  IMS_PER_BATCH: 1
   CHECKPOINT_PERIOD: 5000
-  EVAL_PERIOD: 1000
-  EVAL_BEGIN: 20000
+  EVAL_PERIOD: 3000
+  EVAL_BEGIN: 30000
 
 INPUT:
   MIN_SIZE_TRAIN: (400,600,720,1000,1200)
@@ -99,6 +100,6 @@ INPUT:
   ROTATE_DEGREE: (0,30,60,90,210,150,180,210,240,270,300,330,360)
 
 TEST:
-  IMS_PER_BATCH: 2
+  IMS_PER_BATCH: 1
   VIS_LOTM : False
   VIS_DIR : "debug/vis_ctw_LOTM4"
