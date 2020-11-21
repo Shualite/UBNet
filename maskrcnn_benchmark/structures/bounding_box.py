@@ -321,8 +321,8 @@ class BoxList(object):
                 "last dimension of bbox should have a "
                 "size of 4, got {}".format(bbox.size(-1))
             )
-        if mode not in ("xyxy", "xywh"):
-            raise ValueError("mode should be 'xyxy' or 'xywh'")
+        if mode not in ("xyxy", "xywh", "xcycwh"):
+            raise ValueError("mode should be 'xyxy' or 'xywh' or 'xcycwh'")
 
         self.bbox = bbox
         self.size = image_size  # (image_width, image_height)
@@ -346,8 +346,8 @@ class BoxList(object):
             self.extra_fields[k] = v
 
     def convert(self, mode):
-        if mode not in ("xyxy", "xywh"):
-            raise ValueError("mode should be 'xyxy' or 'xywh'")
+        if mode not in ("xyxy", "xywh", "xcycwh"):
+            raise ValueError("mode should be 'xyxy' or 'xywh' or 'xcycwh'")
         if mode == self.mode:
             return self
         # we only have two modes, so don't need to check
@@ -356,12 +356,21 @@ class BoxList(object):
         if mode == "xyxy":
             bbox = torch.cat((xmin, ymin, xmax, ymax), dim=-1)
             bbox = BoxList(bbox, self.size, mode=mode)
-        else:
+        elif mode == 'xywh':
             TO_REMOVE = 1
             bbox = torch.cat(
                 (xmin, ymin, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE), dim=-1
             )
             bbox = BoxList(bbox, self.size, mode=mode)
+        else:
+            TO_REMOVE = 1
+            xc = (xmax + xmin + TO_REMOVE) / 2
+            yc = (ymax + ymin + TO_REMOVE) / 2
+            bbox = torch.cat(
+                (xc, yc, xmax - xmin + TO_REMOVE, ymax - ymin + TO_REMOVE), dim=-1
+            )
+            bbox = BoxList(bbox, self.size, mode=mode)
+
         bbox._copy_extra_fields(self)
         return bbox
 
@@ -377,6 +386,15 @@ class BoxList(object):
                 ymin,
                 xmin + (w - TO_REMOVE).clamp(min=0),
                 ymin + (h - TO_REMOVE).clamp(min=0),
+            )
+        elif self.mode == "xcycwh":
+            TO_REMOVE = 1
+            xc, yc, w, h = self.bbox.split(1, dim=-1)
+            return (
+                xc - w/2,
+                yc - h/2,
+                xc + w/2 - TO_REMOVE,
+                yc + h/2 - TO_REMOVE
             )
         else:
             raise RuntimeError("Should not be here")
@@ -564,6 +582,10 @@ class BoxList(object):
             
             img = cv2.drawContours(img, [bbox.reshape([-1,1,2])],-1,(0,0,255),2)
         return torch.tensor(img.get().transpose(2, 0, 1), dtype=torch.uint8)
+
+    def shifter(self, ratio=1.0):
+        self.bbox[:,-2:] = self.bbox[:,-2:] * ratio
+        return self 
 
 
 if __name__ == "__main__":

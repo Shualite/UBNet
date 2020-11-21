@@ -47,7 +47,7 @@ class UBPostProcessor(nn.Module):
         else:
             ub_w, ub_w_var = predicted
         
-        assert ub_w.shape[0] == ub_w_var.shape[0]
+        # assert ub_w.shape[0] == ub_w_var.shape[0]
 
         instance_num = ub_w.shape[0]
 

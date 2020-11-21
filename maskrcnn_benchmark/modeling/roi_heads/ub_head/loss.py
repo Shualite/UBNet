@@ -103,6 +103,8 @@ def get_rela_distance_from_boxes(segmentation_masks, proposals, discretization_s
         segmentation_masks: an instance of SegmentationMask
         proposals: an instance of BoxList
     """
+    # TODO: need to calc slid anchor confidence 0/1
+
     # import ipdb;ipdb.set_trace()
 
     distances = []
@@ -200,6 +202,27 @@ def gaussian_dist_loss(val, mean, var):
     loss = loss.sum() / val.numel()
     return loss
 
+def kl_loss(val, gt, var, beta=1.0, size_average=True, writer=None):
+    val = torch.sigmoid(val)
+
+    n = torch.abs(val - gt)
+    cond = n > beta
+
+    loss_ub = 0.5 * (val - gt) ** 2.0 / (torch.exp(var) + 1e-9) + 0.5 * var
+
+    loss_smooth_ub = (n-0.5) / (torch.exp(var) + 1e-9) + 0.5 * var
+
+    loss = torch.where(cond, loss_smooth_ub, loss_ub)
+    # writer.add_histogram(str(iteration), param, i)
+
+    # print(loss_ub.mean())
+    # print(loss_smooth_ub.mean())
+    # print(loss.mean())
+
+    if size_average:
+        return loss.mean()
+    return loss.sum()
+
 class UBRCNNLossComputation(object):
     def __init__(self, proposal_matcher, fg_bg_sampler, discretization_size, cfg):
         """
@@ -213,6 +236,9 @@ class UBRCNNLossComputation(object):
         self.use_gaussian = cfg.MODEL.ROI_UB_HEAD.GAUSSIAN
         self.delta = cfg.MODEL.ROI_UB_HEAD.Loss_balance
         self.cfg = cfg.clone()
+
+        from tensorboardX import SummaryWriter
+        self.writer = SummaryWriter('./debug/param')
 
     def match_targets_to_proposals(self, proposal, target):
         match_quality_matrix = boxlist_iou(target, proposal)
@@ -320,8 +346,8 @@ class UBRCNNLossComputation(object):
             return 0
 
         if self.use_gaussian:
-            ub_vertical_loss = gaussian_dist_loss(ub_w, distance_targets[1], ub_w_var)
-            ub_horizontal_loss = gaussian_dist_loss(ub_h, distance_targets[0], ub_h_var)
+            ub_vertical_loss = kl_loss(ub_w, distance_targets[1], ub_w_var)
+            ub_horizontal_loss = kl_loss(ub_h, distance_targets[0], ub_h_var)
         else:
             ub_vertical_loss = smooth_l1_loss(
                 torch.sigmoid(ub_w),
@@ -344,8 +370,8 @@ class UBRCNNLossComputation(object):
 
 def make_roi_ub_loss_evaluator(cfg):
     matcher = Matcher(
-        cfg.MODEL.ROI_HEADS.FG_IOU_THRESHOLD,
-        cfg.MODEL.ROI_HEADS.BG_IOU_THRESHOLD,
+        cfg.MODEL.ROI_UB_HEAD.FG_IOU_THRESHOLD,
+        cfg.MODEL.ROI_UB_HEAD.BG_IOU_THRESHOLD,
         allow_low_quality_matches=False,
     )
 

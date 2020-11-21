@@ -4,6 +4,7 @@ from torch import nn
 
 from maskrcnn_benchmark.structures.bounding_box import BoxList
 
+from .roi_ub_feature_shifter import make_roi_ub_shifter
 from .roi_ub_feature_extractors import make_roi_ub_feature_extractor
 from .roi_ub_predictors import make_roi_ub_predictor
 from .inference import make_roi_ub_post_processor
@@ -60,11 +61,13 @@ class ROIUBHead(torch.nn.Module):
     def __init__(self, cfg, in_channels):
         super(ROIUBHead, self).__init__()
         self.cfg = cfg.clone()
+        self.random_shifter = make_roi_ub_shifter(cfg)
         self.feature_extractor = make_roi_ub_feature_extractor(cfg, in_channels)
         self.predictor = make_roi_ub_predictor(cfg)
         self.post_processor = make_roi_ub_post_processor(cfg)
         self.loss_evaluator = make_roi_ub_loss_evaluator(cfg)
         self.use_gaussian = cfg.MODEL.ROI_UB_HEAD.GAUSSIAN
+        self.use_conf = cfg.MODEL.ROI_UB_HEAD.CONF
 
     def forward(self, features, proposals, targets=None, images=None):
         """
@@ -93,7 +96,6 @@ class ROIUBHead(torch.nn.Module):
         #     from tensorboardX import SummaryWriter
         #     writer = SummaryWriter('./debug/rpn')
         #     img = images.tensors[0]
-            
         #     img = img - img.min()
         #     img = img/img.max()*255.0
         #     img = torch.tensor(img.clone().detach(), dtype=torch.uint8)
@@ -101,6 +103,11 @@ class ROIUBHead(torch.nn.Module):
         #     proposals_on_image = proposals[0].visualize(img)
         #     writer.add_image('ub_image', proposals_on_image, global_step=10)
         #     writer.flush()
+
+        if self.use_conf:
+            # enlarge proposals size
+            proposals = self.random_shifter(proposals)
+
 
         x = self.feature_extractor(features, proposals)
 

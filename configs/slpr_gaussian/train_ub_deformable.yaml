@@ -1,14 +1,16 @@
-# remark: ub_head make_roi_ub_predictor w_var w_points std=0.01
+# remark: ub_head make_roi_ub_predictor w_var w_points, mean=0, std=0.001
 DEBUG: True
-OUTPUT_DIR: "output/debug_3/"
+OUTPUT_DIR: "output/slpr_gaussian/ctw/ub_deformable/"
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  # WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
   # WEIGHT: "output/debug2/model_0011630.pth"
-  WEIGHT: "output/debug_only_w_var/model_0020000.pth"
+  # WEIGHT: "output/slpr_gaussian/model_0050000.pth"
   STRICT: False
   BACKBONE:
     CONV_BODY: "R-50-FPN"
+  FPN:
+    USE_DEFORMABLE: True
   RESNETS:
     BACKBONE_OUT_CHANNELS: 256
   RPN:
@@ -33,24 +35,12 @@ MODEL:
     PREDICTOR: "FPNPredictor"
     NUM_CLASSES: 2
     CLASS_WEIGHT: 1.0
-  # ## Boundary
-  # BOUNDARY_ON: True
-  # ROI_BOUNDARY_HEAD:
-  #   DEFORMABLE_POOLING: True
-  #   FEATURE_EXTRACTOR: "BoundaryRCNNFPNFeatureExtractor"
-  #   POOLER_RESOLUTION: 14
-  #   POOLER_SCALES: (0.25, 0.125, 0.0625, 0.03125)
-  #   POOLER_SAMPLING_RATIO: 2
-  #   PREDICTOR: "BoundaryRCNNC4Predictor"
-  #   RESOLUTION: 48
-  #   SHARE_BOX_FEATURE_EXTRACTOR: False
-  #   BO_WEIGHT: 0.1
-  #   Loss_balance: 1.1
 
   ## uncertainty border estimation
   UB_ON: True
   ROI_UB_HEAD:
     GAUSSIAN: True
+    CONF: False
     DEFORMABLE_POOLING: True
     FEATURE_EXTRACTOR: "UBRCNNFPNFeatureExtractor"
     POOLER_RESOLUTION: 7
@@ -78,16 +68,15 @@ DATALOADER:
   NUM_WORKERS: 8
   SIZE_DIVISIBILITY: 32
 SOLVER:
-  # GRADIENT_CLIP: 10
-  # gpu num = 2
+  GRADIENT_CLIP: 1.0
   BASE_LR: 0.005
   BIAS_LR_FACTOR: 2
   WEIGHT_DECAY: 0.0001
   STEPS: (30000, 40000)
-  MAX_ITER: 45000
+  MAX_ITER: 50000
   IMS_PER_BATCH: 1
   CHECKPOINT_PERIOD: 5000
-  EVAL_PERIOD: 3000
+  EVAL_PERIOD: 2000
   EVAL_BEGIN: 30000
 
 INPUT:

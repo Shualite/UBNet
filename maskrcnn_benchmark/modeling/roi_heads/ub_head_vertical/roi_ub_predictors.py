@@ -47,12 +47,12 @@ class UBRCNNPredictor(nn.Module):
         self.use_gaussian = cfg.MODEL.ROI_UB_HEAD.GAUSSIAN
         if self.use_gaussian:
             self.w_var = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS+1) * 2)
-            nn.init.normal_(self.w_var.weight, std=0.01)
+            nn.init.normal_(self.w_var.weight, std=0.001)
 
             for l in [self.w_var]:
                 nn.init.constant_(l.bias, 0)
 
-        nn.init.normal_(self.w_points.weight, std=0.01)
+        nn.init.normal_(self.w_points.weight, std=0.001)
 
         for l in [self.w_points]:
             nn.init.constant_(l.bias, 0)

@@ -14,6 +14,9 @@ from maskrcnn_benchmark.config import cfg
 class UBRCNNPredictor(nn.Module):
     def __init__(self, cfg):
         super(UBRCNNPredictor, self).__init__()
+        self.use_gaussian = cfg.MODEL.ROI_UB_HEAD.GAUSSIAN
+        self.use_conf = cfg.MODEL.ROI_UB_HEAD.CONF
+
         dim_reduced = cfg.MODEL.ROI_UB_HEAD.CONV_LAYERS[-1]   # 256
         resolution = cfg.MODEL.ROI_UB_HEAD.RESOLUTION  # 7
 
@@ -21,6 +24,8 @@ class UBRCNNPredictor(nn.Module):
         use_gn = cfg.MODEL.ROI_UB_HEAD.USE_GN
 
         input_size = dim_reduced * resolution ** 2
+
+        # import ipdb;ipdb.set_trace()
 
         if cfg.MODEL.ROI_HEADS.USE_FPN:
             num_inputs = dim_reduced
@@ -44,25 +49,28 @@ class UBRCNNPredictor(nn.Module):
 
         self.w_points = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS+1) * 2)
         self.h_points = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS+1) * 2)
+        # nn.init.normal_(self.w_points.weight, std=0.001)
+        # nn.init.normal_(self.h_points.weight, std=0.001)
+        for l in [self.w_points, self.h_points]:
+            nn.init.normal_(l.weight, std=0.001)
+            nn.init.constant_(l.bias, 0)
 
-        self.use_gaussian = cfg.MODEL.ROI_UB_HEAD.GAUSSIAN
+        if self.use_conf:
+            self.w_conf = nn.Linear(representation_size, cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS+1)
+            self.h_conf = nn.Linear(representation_size, cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS+1)
+            for l in [self.w_conf, self.h_conf]:
+                nn.init.normal_(l.weight, std=0.01)
+                nn.init.constant_(l.bias, 0)
+        
         if self.use_gaussian:
             self.w_var = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS+1) * 2)
             self.h_var = nn.Linear(representation_size, (cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS+1) * 2)
-
-            nn.init.normal_(self.w_var.weight, std=0.001)
-            nn.init.normal_(self.h_var.weight, std=0.001)
-
+            # nn.init.normal_(self.w_var.weight, std=0.001)
+            # nn.init.normal_(self.h_var.weight, std=0.001)
             for l in [self.w_var, self.h_var]:
+                nn.init.normal_(l.weight, mean=0, std=0.0001)
                 nn.init.constant_(l.bias, 0)
-
-
-        # TODO: in case debuff
-        nn.init.normal_(self.w_points.weight, std=0.001)
-        nn.init.normal_(self.h_points.weight, std=0.001)
-
-        for l in [self.w_points, self.h_points]:
-            nn.init.constant_(l.bias, 0)
+        
 
     def forward(self, ft):
         ft = self.bo_input_xy(ft)
@@ -79,6 +87,11 @@ class UBRCNNPredictor(nn.Module):
             ub_w_var = self.w_var(ft)
             ub_h_var = self.h_var(ft)
             return [ub_w, ub_h, ub_w_var, ub_h_var]
+        
+        if self.use_conf:
+            ub_w_conf = self.w_conf(ft)
+            ub_h_conf = self.h_conf(ft)
+            return [ub_w, ub_h, ub_w_conf, ub_h_conf]
         
         return [ub_w, ub_h]
 

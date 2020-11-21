@@ -29,6 +29,7 @@ def build_dataset(dataset_list, transforms, dataset_catalog, is_train=True):
         raise RuntimeError(
             "dataset_list should be a list of strings, got {}".format(dataset_list)
         )
+    
     datasets = []
     for dataset_name in dataset_list:
         data = dataset_catalog.get(dataset_name, 'RRCNN' in cfg.MODEL.META_ARCHITECTURE)

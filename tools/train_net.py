@@ -29,15 +29,15 @@ from torch.backends import cudnn
 import random
 import numpy as np
 
-# cudnn.benchmark = False
-# cudnn.deterministic = True
-# seed = 2345
-# torch.manual_seed(seed) 
-# torch.cuda.manual_seed(seed)  
-# torch.cuda.manual_seed_all(seed) 
-# random.seed(seed)
-# np.random.seed(seed)
-# os.environ['PYTHONHASHSEED'] = str(seed)
+cudnn.benchmark = False
+cudnn.deterministic = True
+seed = 2345
+torch.manual_seed(seed) 
+torch.cuda.manual_seed(seed)  
+torch.cuda.manual_seed_all(seed) 
+random.seed(seed)
+np.random.seed(seed)
+os.environ['PYTHONHASHSEED'] = str(seed)
 
 def train(cfg, local_rank, distributed):
     model = build_detection_model(cfg)
@@ -65,15 +65,6 @@ def train(cfg, local_rank, distributed):
     )
     extra_checkpoint_data = checkpointer.load(cfg.MODEL.WEIGHT)
     arguments.update(extra_checkpoint_data)
-
-
-    # output_dir = cfg.OUTPUT_DIR
-    # checkpointer = DetectronCheckpointer(cfg, model, save_dir=output_dir, save_to_disk=save_to_disk)
-    # extra_checkpoint_data = checkpointer.load(cfg.MODEL.WEIGHT)
-    # arguments.update(extra_checkpoint_data)
-
-    # import ipdb;ipdb.set_trace()
-
 
     data_loader = make_data_loader(
         cfg,

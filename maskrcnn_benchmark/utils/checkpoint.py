@@ -60,13 +60,10 @@ class Checkpointer(object):
         #     # no checkpoint could be found
         #     self.logger.info("No checkpoint found. Initializing model from scratch")
         #     return {}
-        # import ipdb;ipdb.set_trace()
 
         self.logger.info("Loading checkpoint from {}".format(f))
 
         checkpoint = self._load_file(f)
-
-        # import ipdb;ipdb.set_trace()
 
         self._load_model(checkpoint)
         if "optimizer" in checkpoint and self.optimizer:

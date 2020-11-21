@@ -68,6 +68,8 @@ def main():
     iou_types = ("bbox",)
     if cfg.MODEL.BOUNDARY_ON:
         iou_types = iou_types + ("bo",)
+    if cfg.MODEL.UB_ON:
+        iou_types = iou_types + ("ub",)
     output_folders = [None] * len(cfg.DATASETS.TEST)
     dataset_names = cfg.DATASETS.TEST
 

@@ -3,8 +3,8 @@ import torch
 
 from .box_head.box_head import build_roi_box_head
 from .boundary_head.boundary_head import build_roi_boundary_head
-# from .ub_head.ub_head import build_roi_ub_head
-from .ub_head_vertical.ub_head import build_roi_ub_head
+from .ub_head.ub_head import build_roi_ub_head
+# from .ub_head_vertical.ub_head import build_roi_ub_head
 from maskrcnn_benchmark.config import cfg
 
 class CombinedROIHeads(torch.nn.ModuleDict):
@@ -72,9 +72,10 @@ class CombinedROIHeads(torch.nn.ModuleDict):
                 x, detections, loss_ub = self.ub(ub_features, detections, targets, images)
                 losses.update(loss_ub)
             else:
-                x, detections, loss_ub, loss_ub_vertical = self.ub(ub_features, detections, targets)
+                x, detections, loss_ub, loss_ub_vertical, loss_ub_horizontal = self.ub(ub_features, detections, targets)
                 losses.update(loss_ub)
                 losses.update(loss_ub_vertical)
+                losses.update(loss_ub_horizontal)
 
         losses = {prefix + k: losses[k] for k in losses}
 

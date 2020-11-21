@@ -126,10 +126,10 @@ def do_train(
         # print(all_grad0)
         # grad0 = torch.tensor(grad0)
 
-        # nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+        # nn.utils.clip_grad_norm_(model.parameters(), 1.0)
 
-        # if cfg.SOLVER.GRADIENT_CLIP > 0:
-        #     torch.nn.utils.clip_grad_norm(model.parameters(), cfg.SOLVER.GRADIENT_CLIP)
+        if cfg.SOLVER.GRADIENT_CLIP > 0:
+            nn.utils.clip_grad_norm_(model.parameters(), cfg.SOLVER.GRADIENT_CLIP)
 
         # grad = [x['params'][0].grad.sum() for x in optimizer.param_groups]
         # grad_tensors = [x['params'][0].grad for x in optimizer.param_groups]
@@ -137,6 +137,9 @@ def do_train(
         # grad = torch.tensor(grad)
         # print(grad)
         # print(all_grad)
+
+        if cfg.LOCK:
+            import ipdb;ipdb.set_trace()
 
 
         # if torch.isnan(grad).sum() == 0:
