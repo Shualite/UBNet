@@ -339,6 +339,8 @@ class UBRCNNLossComputation(object):
         labels, distance_targets = self.prepare_targets(proposals, targets)
 
         labels = cat(labels, dim=0)
+        
+        # batch=2 error
         distance_targets = cat(distance_targets, dim=0)
         positive_inds = torch.nonzero(labels > 0).squeeze(1)
 

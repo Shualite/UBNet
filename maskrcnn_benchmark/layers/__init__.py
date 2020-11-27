@@ -17,6 +17,7 @@ from .iou_loss import IOULoss
 from .scale import Scale
 from .deform_conv_v2 import DCN, DCNPooling
 from .iou import iou_regress
+from .iou import ciou_regress
 from .focal_loss import Focal_Loss
 
 from .rroi_align import RROIAlign

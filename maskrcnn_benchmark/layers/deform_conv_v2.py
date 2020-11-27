@@ -167,18 +167,10 @@ class _DCNv2Pooling(Function):
         input, rois, offset, output_count = ctx.saved_tensors
         grad_input, grad_offset = \
             _backend.dcn_v2_psroi_pooling_backward(grad_output,
-                                                   input,
-                                                   rois,
-                                                   offset,
-                                                   output_count,
-                                                   ctx.no_trans,
-                                                   ctx.spatial_scale,
-                                                   ctx.output_dim,
-                                                   ctx.group_size,
-                                                   ctx.pooled_size,
-                                                   ctx.part_size,
-                                                   ctx.sample_per_part,
-                                                   ctx.trans_std)
+                                                   input,rois,offset,output_count,ctx.no_trans,
+                                                   ctx.spatial_scale,ctx.output_dim,ctx.group_size,
+                                                   ctx.pooled_size,ctx.part_size,
+                                                   ctx.sample_per_part,ctx.trans_std)
 
         return grad_input, None, grad_offset, \
             None, None, None, None, None, None, None, None
@@ -285,17 +277,11 @@ class DCNPooling(DCNv2Pooling):
             o1, o2, mask = torch.chunk(offset_mask, 3, dim=1)
             offset = torch.cat((o1, o2), dim=1)
             mask = torch.sigmoid(mask)
-
+            
             # do pooling with offset and mask
-            return dcn_v2_pooling(input, rois, offset,
-                                  self.spatial_scale,
-                                  self.pooled_size,
-                                  self.output_dim,
-                                  self.no_trans,
-                                  self.group_size,
-                                  self.part_size,
-                                  self.sample_per_part,
-                                  self.trans_std) * mask
+            return dcn_v2_pooling(input, rois, offset.float(),self.spatial_scale,self.pooled_size,
+                                  self.output_dim,self.no_trans,self.group_size,self.part_size,
+                                  self.sample_per_part,self.trans_std) * mask.float()
         # only roi_align
         return dcn_v2_pooling(input, rois, offset,
                               self.spatial_scale,

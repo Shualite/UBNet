@@ -1,8 +1,9 @@
 # encoding:utf-8
-import file_util
+import os
+
 import Polygon as plg
 import numpy as np
-import os
+
 
 # pred_root = '/data/ContourNet/output/fpn_semflow/ctw/txt'
 gt_root = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'ctw_gt')
@@ -54,6 +55,8 @@ def get_intersection(pD,pG):
     return pInt.area()
 
 def eval_ctw(pred_root):
+    os.chdir('/DATA/disk1/fsy_scenetext/ContourNet_v2/ctw_eval/')
+    from . import file_util
     th = 0.5
     pred_list = file_util.read_dir(pred_root)
 
@@ -98,4 +101,6 @@ def eval_ctw(pred_root):
     recall = tp / npos
     hmean = 0 if (precision + recall) == 0 else 2.0 * precision * recall / (precision + recall)
     print('p: %.4f, r: %.4f, f: %.4f'%(precision, recall, hmean))
+    
+    os.chdir('/DATA/disk1/fsy_scenetext/ContourNet_v2/')
     return (precision, recall, hmean)

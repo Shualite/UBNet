@@ -6,7 +6,6 @@ from .lr_scheduler import WarmupMultiStepLR
 
 
 def make_optimizer(cfg, model):
-    
     params = []
     keys = []
     nokey = []

@@ -16,6 +16,7 @@ class UBRCNNPredictor(nn.Module):
         super(UBRCNNPredictor, self).__init__()
         self.use_gaussian = cfg.MODEL.ROI_UB_HEAD.GAUSSIAN
         self.use_conf = cfg.MODEL.ROI_UB_HEAD.CONF
+        self.use_decouple = cfg.MODEL.ROI_UB_HEAD.DECOUPLE
 
         dim_reduced = cfg.MODEL.ROI_UB_HEAD.CONV_LAYERS[-1]   # 256
         resolution = cfg.MODEL.ROI_UB_HEAD.RESOLUTION  # 7
@@ -39,6 +40,10 @@ class UBRCNNPredictor(nn.Module):
         
         self.fc6 = make_fc(input_size, representation_size, use_gn)
         self.fc7 = make_fc(representation_size, representation_size, use_gn)
+
+        if self.use_decouple:
+            self.fc6_other = make_fc(input_size, representation_size, use_gn)
+            self.fc7_other = make_fc(representation_size, representation_size, use_gn)
 
         # TODO: in case debuff
         for m in self.modules():
@@ -77,23 +82,50 @@ class UBRCNNPredictor(nn.Module):
 
         ft = ft.view(ft.size(0), -1)
 
-        ft = F.relu(self.fc6(ft))
-        # ft = torch.nn.Dropout(0.5)(ft)
-        ft = F.relu(self.fc7(ft))
+        if self.use_decouple:
+            ft_w = F.relu(self.fc6(ft))
+            # ft_w = torch.nn.Dropout(0.5)(ft_w)
+            ft_w = F.relu(self.fc7(ft_w))
 
-        ub_w = self.w_points(ft)
-        ub_h = self.h_points(ft)
-        if self.use_gaussian:
-            ub_w_var = self.w_var(ft)
-            ub_h_var = self.h_var(ft)
-            return [ub_w, ub_h, ub_w_var, ub_h_var]
+            ft_h = F.relu(self.fc6_other(ft))
+            # ft_h = torch.nn.Dropout(0.5)(ft_h)
+            ft_h = F.relu(self.fc7_other(ft_h))
+
+            ub_w = self.w_points(ft_w)
+            ub_h = self.h_points(ft_h)
+
+            if self.use_gaussian:
+                ub_w_var = self.w_var(ft_w)
+                ub_h_var = self.h_var(ft_h)
+                return [ub_w, ub_h, ub_w_var, ub_h_var]
+            
+            if self.use_conf:
+                ub_w_conf = self.w_conf(ft_w)
+                ub_h_conf = self.h_conf(ft_h)
+                return [ub_w, ub_h, ub_w_conf, ub_h_conf]
+            
+            return [ub_w, ub_h]
         
-        if self.use_conf:
-            ub_w_conf = self.w_conf(ft)
-            ub_h_conf = self.h_conf(ft)
-            return [ub_w, ub_h, ub_w_conf, ub_h_conf]
-        
-        return [ub_w, ub_h]
+        else:
+            ft = F.relu(self.fc6(ft))
+            # ft = torch.nn.Dropout(0.5)(ft)
+            ft = F.relu(self.fc7(ft))
+
+
+
+            ub_w = self.w_points(ft)
+            ub_h = self.h_points(ft)
+            if self.use_gaussian:
+                ub_w_var = self.w_var(ft)
+                ub_h_var = self.h_var(ft)
+                return [ub_w, ub_h, ub_w_var, ub_h_var]
+            
+            if self.use_conf:
+                ub_w_conf = self.w_conf(ft)
+                ub_h_conf = self.h_conf(ft)
+                return [ub_w, ub_h, ub_w_conf, ub_h_conf]
+            
+            return [ub_w, ub_h]
 
 
 class Conv2d_cd(nn.Module):

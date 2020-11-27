@@ -65,6 +65,7 @@ class Checkpointer(object):
 
         checkpoint = self._load_file(f)
 
+        # import ipdb;ipdb.set_trace()
         self._load_model(checkpoint)
         if "optimizer" in checkpoint and self.optimizer:
             self.logger.info("Loading optimizer from {}".format(f))

@@ -29,15 +29,32 @@ from torch.backends import cudnn
 import random
 import numpy as np
 
-cudnn.benchmark = False
-cudnn.deterministic = True
-seed = 2345
-torch.manual_seed(seed) 
-torch.cuda.manual_seed(seed)  
-torch.cuda.manual_seed_all(seed) 
-random.seed(seed)
-np.random.seed(seed)
-os.environ['PYTHONHASHSEED'] = str(seed)
+RANDOM_FIX = True
+sync_bn = True
+
+if RANDOM_FIX:
+    cudnn.benchmark = False
+    cudnn.deterministic = True
+    seed = 2345
+    torch.manual_seed(seed) 
+    torch.cuda.manual_seed(seed)  
+    torch.cuda.manual_seed_all(seed) 
+    random.seed(seed)
+    np.random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+
+
+try:
+    import apex.optimizers as apex_optim
+    from apex.parallel import DistributedDataParallel as DDP
+    from apex.fp16_utils import *
+    from apex import amp
+    from apex.multi_tensor_apply import multi_tensor_applier
+    import apex
+except ImportError:
+    raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
+
+
 
 def train(cfg, local_rank, distributed):
     model = build_detection_model(cfg)
@@ -53,6 +70,19 @@ def train(cfg, local_rank, distributed):
             # this should be removed if we update BatchNorm stats
             broadcast_buffers=False,
         )
+    
+    # if distributed:
+    #     torch.cuda.set_device(local_rank)
+    #     # Initializes the distributed backend which will take care of synchronizing nodes/GPUs
+    #     torch.distributed.init_process_group(backend='nccl', init_method='env://')
+    #     print("World Size is :", torch.distributed.get_world_size())
+    # assert torch.backends.cudnn.enabled, "Amp requires cudnn backend to be enabled."
+    # if sync_bn:
+    #     print("Using apex synced BN.")
+    #     model = apex.parallel.convert_syncbn_model(model)
+    # model.to(device)
+    
+    # model, optimizer = amp.initialize(model, optimizer, opt_level="O1")  
 
     arguments = {}
     arguments["iteration"] = 0

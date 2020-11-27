@@ -223,9 +223,9 @@ class Pooler(nn.Module):
                 new_level = idx_in_level.new_tensor((0,))
                 new_rois = rois[new_level]
                 result[new_level] = result[new_level] \
-                                    + pooler(per_level_feature, new_rois) * 0.0
+                                    + pooler(per_level_feature.float(), new_rois) * 0.0
             else:
-                result[idx_in_level] = pooler(per_level_feature, rois_per_level)
+                result[idx_in_level] = pooler(per_level_feature.float(), rois_per_level)
 
         return result
 

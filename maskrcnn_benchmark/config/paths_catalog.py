@@ -14,14 +14,18 @@ class DatasetCatalog(object):
             'ic15/ic15_test_images',
             'ic15/annotations/ic15_test.json'
         ),
-         "CTW1500_train": (
+        "CTW1500_train": (
             'CTW_dataset/train_img',
             'CTW_dataset/annotations/CTW_train.json'
         ),
         "CTW1500_test": (
             'CTW_dataset/test_img',
             'CTW_dataset/annotations/CTW_test.json'
-        )
+        ),
+        "mlt_train": (
+            'mlt/imgs',
+            'mlt/annotations/mlt_train.json'
+        ),
         
 }
 

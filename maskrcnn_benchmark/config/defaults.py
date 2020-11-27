@@ -188,6 +188,10 @@ _C.MODEL.RPN.FPN_POST_NMS_TOP_N_TEST = 2000
 # Custom rpn head, empty to use default conv or separable conv
 _C.MODEL.RPN.RPN_HEAD = "SingleConvRPNHead_1"
 
+_C.MODEL.RPN.CIOU = False
+
+_C.MODEL.RPN.Loss_balance = 1.2
+
 
 # ---------------------------------------------------------------------------- #
 # ROI REC HEADS options
@@ -307,6 +311,7 @@ _C.MODEL.ROI_UB_HEAD = CN()
 _C.MODEL.ROI_UB_HEAD.DEFORMABLE_POOLING = False
 
 _C.MODEL.ROI_UB_HEAD.GAUSSIAN = False
+_C.MODEL.ROI_UB_HEAD.DECOUPLE = False
 _C.MODEL.ROI_UB_HEAD.CONF = False
 
 _C.MODEL.ROI_UB_HEAD.FG_IOU_THRESHOLD = 0.5

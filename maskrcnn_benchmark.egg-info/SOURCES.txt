@@ -16,6 +16,11 @@ ctw_eval/__init__.py
 ctw_eval/eval_ctw1500.py
 ctw_eval/eval_func_ctw.py
 ctw_eval/file_util.py
+ic15_eval/__init__.py
+ic15_eval/eval_func_ic15.py
+ic15_eval/eval_ic15.py
+ic15_eval/rrc_evaluation_funcs.py
+ic15_eval/script.py
 maskrcnn_benchmark/__init__.py
 maskrcnn_benchmark.egg-info/PKG-INFO
 maskrcnn_benchmark.egg-info/SOURCES.txt
@@ -152,8 +157,15 @@ maskrcnn_benchmark/modeling/roi_heads/ub_head/__init__.py
 maskrcnn_benchmark/modeling/roi_heads/ub_head/inference.py
 maskrcnn_benchmark/modeling/roi_heads/ub_head/loss.py
 maskrcnn_benchmark/modeling/roi_heads/ub_head/roi_ub_feature_extractors.py
+maskrcnn_benchmark/modeling/roi_heads/ub_head/roi_ub_feature_shifter.py
 maskrcnn_benchmark/modeling/roi_heads/ub_head/roi_ub_predictors.py
 maskrcnn_benchmark/modeling/roi_heads/ub_head/ub_head.py
+maskrcnn_benchmark/modeling/roi_heads/ub_head_vertical/__init__.py
+maskrcnn_benchmark/modeling/roi_heads/ub_head_vertical/inference.py
+maskrcnn_benchmark/modeling/roi_heads/ub_head_vertical/loss.py
+maskrcnn_benchmark/modeling/roi_heads/ub_head_vertical/roi_ub_feature_extractors.py
+maskrcnn_benchmark/modeling/roi_heads/ub_head_vertical/roi_ub_predictors.py
+maskrcnn_benchmark/modeling/roi_heads/ub_head_vertical/ub_head.py
 maskrcnn_benchmark/modeling/rpn/__init__.py
 maskrcnn_benchmark/modeling/rpn/anchor_generator.py
 maskrcnn_benchmark/modeling/rpn/inference.py

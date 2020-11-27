@@ -15,9 +15,11 @@ from ..utils import cat
 
 from maskrcnn_benchmark.layers import smooth_l1_loss
 from maskrcnn_benchmark.layers import iou_regress
+from maskrcnn_benchmark.layers import ciou_regress
 from maskrcnn_benchmark.modeling.matcher import Matcher
 from maskrcnn_benchmark.structures.boxlist_ops import boxlist_iou
 from maskrcnn_benchmark.structures.boxlist_ops import cat_boxlist
+
 
 
 class RPNLossComputation(object):
@@ -116,16 +118,30 @@ class RPNLossComputation(object):
         objectness = objectness.squeeze()   # [1041820]
         labels = torch.cat(labels, dim=0)
         regression_targets = torch.cat(regression_targets, dim=0)
-
-        box_loss = iou_regress(
-            box_regression[sampled_pos_inds],
-            regression_targets[sampled_pos_inds],
-            beta=1.0 / 9,
-            size_average=False,
-        ) / (sampled_inds.numel())
-
-        box_loss *= cfg.MODEL.ROI_BOUNDARY_HEAD.Loss_balance
-
+        
+        if cfg.MODEL.RPN.CIOU:
+            box_loss = ciou_regress(
+                box_regression[sampled_pos_inds],
+                regression_targets[sampled_pos_inds]
+            ) / (sampled_inds.numel())
+        
+        else:
+            box_loss = iou_regress(
+                box_regression[sampled_pos_inds],
+                regression_targets[sampled_pos_inds],
+                beta=1.0 / 9,
+                size_average=False,
+            ) / (sampled_inds.numel())
+        
+        # import ipdb;ipdb.set_trace()
+        # box_loss = smooth_l1_loss(
+        #         box_regression[sampled_pos_inds],
+        #         regression_targets[sampled_pos_inds],
+        #         size_average=False,
+        #         beta=1,
+        #     ) / (sampled_inds.numel())
+        
+        box_loss *= cfg.MODEL.RPN.Loss_balance
         objectness_loss = F.binary_cross_entropy_with_logits(
             objectness[sampled_inds], labels[sampled_inds]
         )

@@ -1,3 +1,4 @@
 ctw_eval
+ic15_eval
 maskrcnn_benchmark
 rotation

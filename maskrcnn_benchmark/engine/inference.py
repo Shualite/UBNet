@@ -12,6 +12,8 @@ from ..utils.comm import all_gather
 from ..utils.comm import synchronize
 from ..utils.timer import Timer, get_time_str
 from ctw_eval.eval_func_ctw import eval_ctw
+from ic15_eval.eval_func_ic15 import eval_ic15
+
 from maskrcnn_benchmark.config import cfg
 
 def compute_on_dataset(model, data_loader, device, timer=None):
@@ -69,8 +71,6 @@ def inference(
         expected_results_sigma_tol=4,
         output_folder=None,
 ):
-    
-
     logger = logging.getLogger("maskrcnn_benchmark.inference")
     dataset = data_loader.dataset
     logger.info("Start evaluation on {} dataset({} images).".format(dataset_name, len(dataset)))
@@ -137,4 +137,18 @@ def inference(
             output_folder=output_folder,
             **extra_args)
     
-    return eval_ctw(os.path.join(cfg.OUTPUT_DIR, 'txt'))
+    if "CTW1500_test" in cfg.DATASETS.TEST:
+        precision, recall, hmean = eval_ctw(os.path.join(cfg.OUTPUT_DIR, 'txt'))
+    if "ic15_test" in cfg.DATASETS.TEST:
+        res = eval_ic15(os.path.abspath(os.path.join(cfg.OUTPUT_DIR, 'inference', 'ic15_test','ub.json')))
+        precision, recall, hmean = res[0], res[1], res[2]
+
+    logger.info(
+        "Model eval: precision: {}; recall {}; fscore: {}.".format(
+            precision,
+            recall,
+            hmean,
+        )
+    )
+
+    return (precision, recall, hmean)

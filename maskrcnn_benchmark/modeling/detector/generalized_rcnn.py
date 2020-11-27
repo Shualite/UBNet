@@ -51,6 +51,7 @@ class GeneralizedRCNN(nn.Module):
         
         images = to_image_list(images)
 
+        
         features = self.backbone(images.tensors)
         proposals, proposal_losses = self.rpn(images, features, targets)
         

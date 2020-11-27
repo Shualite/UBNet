@@ -16,6 +16,8 @@ from maskrcnn_benchmark.config import cfg
 from maskrcnn_benchmark.utils.comm import synchronize, get_rank
 from maskrcnn_benchmark.utils.miscellaneous import mkdir
 
+from apex import amp
+
 from tensorboardX import SummaryWriter
 writer = SummaryWriter('./debug/param')
 
@@ -115,6 +117,9 @@ def do_train(
 
         optimizer.zero_grad()
         losses.backward()
+        
+        # with amp.scale_loss(losses, optimizer) as scaled_loss:
+        #     scaled_loss.backward()
 
         # for i, (name, param) in enumerate(model.named_parameters()):
         #     if 'bn' not in name and param.requires_grad:
