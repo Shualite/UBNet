@@ -1,0 +1,3 @@
+========= 0.65:
+('recall: ', 0.831, 'precision: ', 0.413, 'hmean: ', 0.552)
+('tiouRecall:', 0.497, 'tiouPrecision:', 0.299, 'tiouHmean:', 0.374)

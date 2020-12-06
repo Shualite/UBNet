@@ -9,6 +9,7 @@ from maskrcnn_benchmark.utils.c2_model_loading import load_c2_format
 from maskrcnn_benchmark.utils.imports import import_file
 from maskrcnn_benchmark.utils.model_zoo import cache_url
 from maskrcnn_benchmark.utils.comm import synchronize, get_rank
+from maskrcnn_benchmark.config import cfg
 
 
 class Checkpointer(object):
@@ -62,17 +63,20 @@ class Checkpointer(object):
         #     return {}
 
         self.logger.info("Loading checkpoint from {}".format(f))
-
         checkpoint = self._load_file(f)
 
-        # import ipdb;ipdb.set_trace()
         self._load_model(checkpoint)
-        if "optimizer" in checkpoint and self.optimizer:
+        if "optimizer" in checkpoint and self.optimizer and cfg.OUTPUT_DIR.find('pretrain') == -1:
             self.logger.info("Loading optimizer from {}".format(f))
             self.optimizer.load_state_dict(checkpoint.pop("optimizer"))
-        if "scheduler" in checkpoint and self.scheduler:
+        if "scheduler" in checkpoint and self.scheduler and cfg.OUTPUT_DIR.find('pretrain') == -1:
             self.logger.info("Loading scheduler from {}".format(f))
             self.scheduler.load_state_dict(checkpoint.pop("scheduler"))
+        
+        if cfg.OUTPUT_DIR.find('pretrain') != -1:
+            checkpoint.pop("optimizer")
+            checkpoint.pop("scheduler")
+            checkpoint.pop("iteration")
 
         # return any further checkpoint data
         return checkpoint

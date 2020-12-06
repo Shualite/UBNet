@@ -4,7 +4,8 @@ import time
 import sys
 import argparse
 import json
-
+import zipfile
+import glob
 
 temp_detcors = 'all_detcors.txt'
 temp_res = 'evaluation_resutls.txt'
@@ -36,6 +37,8 @@ def eval_ic15(json_file="ub.json"):
 	# lsc = [0.51+i*1.0/100 for i in range(30)]
 	lsc = [0.65]
 	fres = open(temp_detcors, 'r').readlines()
+ 
+	
 
 	for isc in lsc:
 		print ('Evaluating cf threshold {} ...'.format(str(isc)))
@@ -63,9 +66,14 @@ def eval_ic15(json_file="ub.json"):
 				fout.writelines(cors+'\n')
 				
 		os.chdir("mb_ch4_results/")
-		os.popen("zip -r ../mb_ch4.zip ./")
-		os.chdir("../")
-		cmd = "python "+eval_dir+"script.py "+"-g="+eval_dir+"ch4_gt.zip -s=mb_ch4.zip"
+		# os.popen("zip -r ../mb_ch4.zip ./")
+		
+		with zipfile.ZipFile('mb_ch4.zip','w') as zf:
+			[zf.write(f ,compress_type=zipfile.ZIP_DEFLATED) for f in glob.glob('*.txt')]
+		os.popen('mv ./mb_ch4.zip ../')
+		os.chdir("..")
+   
+		cmd = "python2 "+eval_dir+"script.py "+"-g="+eval_dir+"ch4_gt.zip -s=mb_ch4.zip"
 		output = os.popen(cmd).read()
 		print(output)
 

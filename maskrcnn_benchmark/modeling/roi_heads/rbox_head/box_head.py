@@ -6,6 +6,7 @@ from .roi_box_feature_extractors import make_roi_box_feature_extractor
 from .roi_box_predictors import make_roi_box_predictor
 from .inference import make_roi_box_post_processor
 from .loss import make_roi_box_loss_evaluator
+from .loss_with_IoU import make_roi_box_loss_evaluator as make_roi_box_IoUloss_evaluator
 
 
 class ROIBoxHead(torch.nn.Module):
@@ -18,11 +19,14 @@ class ROIBoxHead(torch.nn.Module):
         self.feature_extractor = make_roi_box_feature_extractor(cfg)
         self.predictor = make_roi_box_predictor(cfg)
         self.post_processor = make_roi_box_post_processor(cfg)
-        self.loss_evaluator = make_roi_box_loss_evaluator(cfg)
+
+        self.loss_evaluator = make_roi_box_loss_evaluator(cfg) \
+            if not cfg.MODEL.ROI_BOX_HEAD.IOU_BRANCH else \
+            make_roi_box_IoUloss_evaluator(cfg)
 
         self.cfg = cfg
 
-    def forward(self, features, proposals, targets=None, image_tensor=None):
+    def forward(self, features, proposals, targets=None):
         """
         Arguments:
             features (list[Tensor]): feature-maps from possibly several levels
@@ -36,6 +40,7 @@ class ROIBoxHead(torch.nn.Module):
             losses (dict[Tensor]): During training, returns the losses for the
                 head. During testing, returns an empty dict.
         """
+        # import ipdb;ipdb.set_trace()
         # if self.cfg.TEST.CASCADE:
         recur_iter = self.cfg.MODEL.ROI_HEADS.RECUR_ITER if self.cfg.TEST.CASCADE else 1
 
@@ -51,26 +56,41 @@ class ROIBoxHead(torch.nn.Module):
 
             # extract features that will be fed to the final classifier. The
             # feature_extractor generally corresponds to the pooler + heads
-            
-            x = self.feature_extractor(features, recur_proposals, image_tensor)
+            if self.cfg.MODEL.ROI_BOX_HEAD.IOU_BRANCH:
+                x, IoU_x = self.feature_extractor(features, recur_proposals)
+                class_logits, box_regression, IoU_logits = self.predictor(x, IoU_x)
+            else:
+                x = self.feature_extractor(features, recur_proposals)
+                class_logits, box_regression = self.predictor(x)
             # final classifier that converts the features into predictions
-            class_logits, box_regression = self.predictor(x)
+
 
             if not self.training:
                 recur_proposals = self.post_processor((class_logits, box_regression), recur_proposals, recur_iter - i - 1) # result
             else:
-                loss_classifier, loss_box_reg = self.loss_evaluator(
-                    [class_logits], [box_regression]
-                )
+                if self.cfg.MODEL.ROI_BOX_HEAD.IOU_BRANCH:
+                    loss_classifier, loss_box_reg, loss_IoU = self.loss_evaluator(
+                        [class_logits], [box_regression], [IoU_logits]
+                    )
+                else:
+                    loss_classifier, loss_box_reg = self.loss_evaluator(
+                        [class_logits], [box_regression]
+                    )
         if not self.training:
             return x, recur_proposals, {}
 
-        return (
-            x,
-            # proposals,
-            recur_proposals,
-            dict(loss_classifier=loss_classifier, loss_box_reg=loss_box_reg),
-        )
+        if self.cfg.MODEL.ROI_BOX_HEAD.IOU_BRANCH:
+            return (
+                x,
+                proposals,
+                dict(loss_classifier=loss_classifier, loss_box_reg=loss_box_reg, loss_IoU=loss_IoU),
+            )
+        else:
+            return (
+                x,
+                proposals,
+                dict(loss_classifier=loss_classifier, loss_box_reg=loss_box_reg),
+            )
 
 
 def build_roi_box_head(cfg):

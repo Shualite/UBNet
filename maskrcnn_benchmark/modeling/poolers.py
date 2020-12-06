@@ -7,6 +7,9 @@ from maskrcnn_benchmark.layers import ROIAlign
 from maskrcnn_benchmark.layers import RROIAlign
 from maskrcnn_benchmark.layers import DCNPooling
 
+from maskrcnn_benchmark.layers import ROIAlignRotatedFromD2
+from maskrcnn_benchmark.layers import ROIAlignRotatedKeep
+
 from .utils import cat
 
 
@@ -59,7 +62,7 @@ class PyramidRROIAlign(nn.Module):
     which is available thanks to the BoxList.
     """
 
-    def __init__(self, output_size, scales):
+    def __init__(self, output_size, scales, sampling_ratio=2):
         """
         Arguments:
             output_size (list[tuple[int]] or list[int]): output size for the pooled region
@@ -70,8 +73,12 @@ class PyramidRROIAlign(nn.Module):
         poolers = []
         for scale in scales:
             poolers.append(
-                RROIAlign(
-                    output_size, spatial_scale=scale
+                # RROIAlign(
+                #     output_size, spatial_scale=scale
+                # )
+                # Using RROI Align from Detectron 2
+                ROIAlignRotatedFromD2(
+                    output_size, spatial_scale=scale, sampling_ratio=sampling_ratio
                 )
             )
         self.poolers = nn.ModuleList(poolers)
@@ -80,9 +87,15 @@ class PyramidRROIAlign(nn.Module):
         # downsamples by a factor of 2 at each level.
         lvl_min = -torch.log2(torch.tensor(scales[0], dtype=torch.float32)).item()
         lvl_max = -torch.log2(torch.tensor(scales[-1], dtype=torch.float32)).item()
-        self.map_levels = LevelMapper(lvl_min, lvl_max, canonical_scale=160)
+        self.map_levels = LevelMapper(lvl_min, lvl_max)
 
-    # boxes[proposals, 5] -> [proposals, 6]
+        # self.pool_feature = nn.Conv2d(
+        #     256 * 4, 256, kernel_size=1, stride=1
+        # )
+
+        # torch.nn.init.normal_(self.pool_feature.weight, std=0.01)
+        # torch.nn.init.constant_(self.pool_feature.bias, 0)
+
     def convert_to_roi_format(self, boxes):
         concat_boxes = cat([b.bbox for b in boxes], dim=0)
         device, dtype = concat_boxes.device, concat_boxes.dtype
@@ -93,7 +106,6 @@ class PyramidRROIAlign(nn.Module):
             ],
             dim=0,
         )
-        # add 0
         rois = torch.cat([ids, concat_boxes], dim=1)
         return rois
 
@@ -109,33 +121,30 @@ class PyramidRROIAlign(nn.Module):
         rois = self.convert_to_roi_format(boxes)
         if num_levels == 1:
             return self.poolers[0](x[0], rois)
-        
-        levels = self.map_levels(boxes)    
-        
+
+        levels = self.map_levels(boxes)
+
         num_rois = len(rois)
         num_channels = x[0].shape[1]
         output_size = self.output_size[0]
 
         dtype, device = x[0].dtype, x[0].device
         result = torch.zeros(
-            (num_rois, num_channels, output_size, output_size),
+            (num_rois, num_channels, self.output_size[0], self.output_size[1]),
             dtype=dtype,
             device=device,
         )
 
         # result = []
+
         for level, (per_level_feature, pooler) in enumerate(zip(x, self.poolers)):
             idx_in_level = torch.nonzero(levels == level).squeeze(1)
             rois_per_level = rois[idx_in_level]
-            result[idx_in_level] = pooler(per_level_feature, rois_per_level)
-            # try:
-            #     result[idx_in_level] = pooler(per_level_feature, rois_per_level)
-            # except RuntimeError:
-            #     print('cuda error 9')
-            #     result[idx_in_level] = pooler(per_level_feature, rois_per_level) 
-            
+            result[idx_in_level] = pooler(per_level_feature, rois_per_level)  #  rois_per_level)
+            # result.append(pooler(per_level_feature, rois_per_level))
+        # print("result:", result[0].shape, result[1].shape)
+        return result #self.pool_feature(torch.cat(result, 1))
 
-        return result # torch.cat(result, 1)
 
 
 class Pooler(nn.Module):
@@ -228,6 +237,100 @@ class Pooler(nn.Module):
                 result[idx_in_level] = pooler(per_level_feature.float(), rois_per_level)
 
         return result
+
+
+class PyramidKeepRROIAlign(nn.Module):
+    """
+    Pooler for Detection with or without FPN.
+    It currently hard-code ROIAlign in the implementation,
+    but that can be made more generic later on.
+    Also, the requirement of passing the scales is not strictly necessary, as they
+    can be inferred from the size of the feature map / size of original image,
+    which is available thanks to the BoxList.
+    """
+
+    def __init__(self, output_size, scales, sampling_ratio=2):
+        """
+        Arguments:
+            output_size (list[tuple[int]] or list[int]): output size for the pooled region
+            scales (list[float]): scales for each Pooler
+            sampling_ratio (int): sampling ratio for ROIAlign
+        """
+        super(PyramidKeepRROIAlign, self).__init__()
+        poolers = []
+        for scale in scales:
+            poolers.append(
+                # RROIAlign(
+                #     output_size, spatial_scale=scale
+                # )
+                # Using Ratio-Kept RoiAlign-Rotated
+                ROIAlignRotatedKeep(
+                    output_size, spatial_scale=scale, sampling_ratio=sampling_ratio
+                )
+            )
+        self.poolers = nn.ModuleList(poolers)
+        self.output_size = output_size
+        # get the levels in the feature map by leveraging the fact that the network always
+        # downsamples by a factor of 2 at each level.
+        lvl_min = -torch.log2(torch.tensor(scales[0], dtype=torch.float32)).item()
+        lvl_max = -torch.log2(torch.tensor(scales[-1], dtype=torch.float32)).item()
+        self.map_levels = LevelMapper(lvl_min, lvl_max)
+
+        # self.pool_feature = nn.Conv2d(
+        #     256 * 4, 256, kernel_size=1, stride=1
+        # )
+
+        # torch.nn.init.normal_(self.pool_feature.weight, std=0.01)
+        # torch.nn.init.constant_(self.pool_feature.bias, 0)
+
+    def convert_to_roi_format(self, boxes):
+        concat_boxes = cat([b.bbox for b in boxes], dim=0)
+        device, dtype = concat_boxes.device, concat_boxes.dtype
+        ids = cat(
+            [
+                torch.full((len(b), 1), i, dtype=dtype, device=device)
+                for i, b in enumerate(boxes)
+            ],
+            dim=0,
+        )
+        rois = torch.cat([ids, concat_boxes], dim=1)
+        return rois
+
+    def forward(self, x, boxes):
+        """
+        Arguments:
+            x (list[Tensor]): feature maps for each level
+            boxes (list[BoxList]): boxes to be used to perform the pooling operation.
+        Returns:
+            result (Tensor)
+        """
+        num_levels = len(self.poolers)
+        rois = self.convert_to_roi_format(boxes)
+        if num_levels == 1:
+            return self.poolers[0](x[0], rois)
+
+        levels = self.map_levels(boxes)
+
+        num_rois = len(rois)
+        num_channels = x[0].shape[1]
+        output_size = self.output_size[0]
+
+        dtype, device = x[0].dtype, x[0].device
+        result = torch.zeros(
+            (num_rois, num_channels, self.output_size[0], self.output_size[1]),
+            dtype=dtype,
+            device=device,
+        )
+
+        # result = []
+
+        for level, (per_level_feature, pooler) in enumerate(zip(x, self.poolers)):
+            idx_in_level = torch.nonzero(levels == level).squeeze(1)
+            rois_per_level = rois[idx_in_level]
+            result[idx_in_level] = pooler(per_level_feature, rois_per_level)  #  rois_per_level)
+            # result.append(pooler(per_level_feature, rois_per_level))
+        # print("result:", result[0].shape, result[1].shape)
+        return result #self.pool_feature(torch.cat(result, 1))
 
 
 def make_pooler(cfg, head_name):

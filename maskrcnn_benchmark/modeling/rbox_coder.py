@@ -63,7 +63,7 @@ class RBoxCoder(object):
         targets_da = targets_da + incre180.float()
         targets_da = targets_da + decre180.float()
 
-        targets_da = 3.14159265358979323846264338327950288 / 180 * targets_da
+        targets_da = 3.14159265358979323846264338327950288 / 180. * targets_da
 
         targets = torch.stack((targets_dx, targets_dy, targets_dw, targets_dh, targets_da), dim=1)
         return targets
@@ -98,7 +98,7 @@ class RBoxCoder(object):
         pred_ctr_y = dy * heights[:, None] + ctr_y[:, None]
         pred_w = torch.exp(dw) * widths[:, None]
         pred_h = torch.exp(dh) * heights[:, None]
-        da = da * 1.0 / 3.141592653 * 180  # arc to angle
+        da = da * 1.0 / 3.141592653 * 180.  # arc to angle
         pred_angle = da + angle[:, None]
 
         # print('pred_angle:', pred_angle.size())

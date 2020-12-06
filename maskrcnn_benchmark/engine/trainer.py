@@ -83,6 +83,13 @@ def do_train(
 
     max_iter = len(data_loader)
     start_iter = arguments["iteration"]
+    
+    # def inplace_relu(m):
+    #     classname = m.__class__.__name__
+    #     if classname.find('ReLU') != -1:
+    #         m.inplace=True
+            
+    # model.apply(inplace_relu)
 
     model.train()
     start_training_time = time.time()
@@ -106,6 +113,7 @@ def do_train(
         loss_dict = model(images, targets)
 
         del targets
+        del images
         
 
         losses = sum(loss for loss in loss_dict.values())
@@ -187,6 +195,7 @@ def do_train(
             meters = MetricLogger(delimiter="  ")
         if iteration % checkpoint_period == 0:
             checkpointer.save("model_{:07d}".format(iteration), **arguments)
+            torch.cuda.empty_cache()
 
         
         

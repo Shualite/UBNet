@@ -1,10 +1,10 @@
-DEBUG: True
+DEBUG: False
 OUTPUT_DIR: "output/slpr_gaussian/ic15/ub/"
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
-  # WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
+  WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
   # WEIGHT: "output/debug2/model_0011630.pth"
-  WEIGHT: "output/slpr_gaussian/ic15/ub/model_0010000.pth"
+  # WEIGHT: "output/slpr_gaussian/ic15/ub/model_0010000.pth"
   STRICT: True
   BACKBONE:
     CONV_BODY: "R-50-FPN"
@@ -33,7 +33,6 @@ MODEL:
   ## uncertainty border estimation
   UB_ON: True
   ROI_UB_HEAD:
-    DECOUPLE: True
     GAUSSIAN: True
     CONF: False
     DEFORMABLE_POOLING: True
@@ -44,11 +43,11 @@ MODEL:
     PREDICTOR: "UBRCNNPredictor"
     RESOLUTION: 7
     BORDER_RATIO: 65
-    UB_W_POINTS: 32
-    UB_H_POINTS: 32
+    UB_W_POINTS: 16
+    UB_H_POINTS: 16
     SHARE_BOX_FEATURE_EXTRACTOR: False
     BO_WEIGHT: 0.1
-    Loss_balance: 1.0
+    Loss_balance: 2.0
   LOGGING: True
 
 PROCESS:
@@ -67,12 +66,12 @@ SOLVER:
   BASE_LR: 0.005
   BIAS_LR_FACTOR: 2
   WEIGHT_DECAY: 0.0001
-  STEPS: (80000, 100000)
-  MAX_ITER: 120000
-  IMS_PER_BATCH: 1
+  STEPS: (60000, 70000)
+  MAX_ITER: 80000
+  IMS_PER_BATCH: 2
   CHECKPOINT_PERIOD: 1000
   EVAL_PERIOD: 2000
-  EVAL_BEGIN: 100000
+  EVAL_BEGIN: 60000
 
 INPUT:
   MIN_SIZE_TRAIN: (400,600,720,1000,1200)
@@ -84,6 +83,6 @@ INPUT:
   ROTATE_DEGREE: (0,30,60,90,210,150,180,210,240,270,300,330,360)
 
 TEST:
-  IMS_PER_BATCH: 1
+  IMS_PER_BATCH: 2
   VIS_LOTM : False
   VIS_DIR : "debug/vis_ctw_LOTM4"

@@ -79,8 +79,7 @@ at::Tensor compute_flow_cuda(const at::Tensor& boxes,
                              const int height,
                              const int width);
 
-at::Tensor
-dcn_v2_cuda_forward(const at::Tensor &input,
+at::Tensor dcn_v2_cuda_forward(const at::Tensor &input,
                     const at::Tensor &weight,
                     const at::Tensor &bias,
                     const at::Tensor &offset,
@@ -95,8 +94,7 @@ dcn_v2_cuda_forward(const at::Tensor &input,
                     const int dilation_w,
                     const int deformable_group);
 
-std::vector<at::Tensor>
-dcn_v2_cuda_backward(const at::Tensor &input,
+std::vector<at::Tensor> dcn_v2_cuda_backward(const at::Tensor &input,
                      const at::Tensor &weight,
                      const at::Tensor &bias,
                      const at::Tensor &offset,
@@ -109,8 +107,7 @@ dcn_v2_cuda_backward(const at::Tensor &input,
                      int deformable_group);
 
 
-std::tuple<at::Tensor, at::Tensor>
-dcn_v2_psroi_pooling_cuda_forward(const at::Tensor &input,
+std::tuple<at::Tensor, at::Tensor> dcn_v2_psroi_pooling_cuda_forward(const at::Tensor &input,
                                   const at::Tensor &bbox,
                                   const at::Tensor &trans,
                                   const int no_trans,
@@ -122,8 +119,7 @@ dcn_v2_psroi_pooling_cuda_forward(const at::Tensor &input,
                                   const int sample_per_part,
                                   const float trans_std);
 
-std::tuple<at::Tensor, at::Tensor>
-dcn_v2_psroi_pooling_cuda_backward(const at::Tensor &out_grad,
+std::tuple<at::Tensor, at::Tensor> dcn_v2_psroi_pooling_cuda_backward(const at::Tensor &out_grad,
                                    const at::Tensor &input,
                                    const at::Tensor &bbox,
                                    const at::Tensor &trans,
@@ -136,3 +132,45 @@ dcn_v2_psroi_pooling_cuda_backward(const at::Tensor &out_grad,
                                    const int part_size,
                                    const int sample_per_part,
                                    const float trans_std);
+
+
+at::Tensor ROIAlignRotated_forward_cuda(
+    const at::Tensor& input,
+    const at::Tensor& rois,
+    const float spatial_scale,
+    const int pooled_height,
+    const int pooled_width,
+    const int sampling_ratio);
+
+at::Tensor ROIAlignRotated_backward_cuda(
+    const at::Tensor& grad,
+    const at::Tensor& rois,
+    const float spatial_scale,
+    const int pooled_height,
+    const int pooled_width,
+    const int batch_size,
+    const int channels,
+    const int height,
+    const int width,
+    const int sampling_ratio);
+
+at::Tensor ROIAlignRotatedKeep_forward_cuda(
+    const at::Tensor& input,
+    const at::Tensor& rois,
+    const float spatial_scale,
+    const int pooled_height,
+    const int pooled_width,
+    const int sampling_ratio);
+
+at::Tensor ROIAlignRotatedKeep_backward_cuda(
+    const at::Tensor& grad,
+    const at::Tensor& rois,
+    const float spatial_scale,
+    const int pooled_height,
+    const int pooled_width,
+    const int batch_size,
+    const int channels,
+    const int height,
+    const int width,
+    const int sampling_ratio);
+

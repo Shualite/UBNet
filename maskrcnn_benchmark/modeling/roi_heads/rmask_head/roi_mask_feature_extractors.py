@@ -53,11 +53,13 @@ class MaskRCNNFPNFeatureExtractor(nn.Module):
             self.blocks.append(layer_name)
 
     def forward(self, x, proposals):
-        x = self.pooler(x, proposals)
 
-        # resize_proposals = [proposal.rescale(self.rescale) for proposal in proposals]
-        # x = self.pooler(x, resize_proposals)
-
+        if self.training:
+            x = self.pooler(x, proposals)
+        else:
+            resize_proposals = [proposal.rescale(self.det_margin) for proposal in proposals]
+            x = self.pooler(x, resize_proposals)
+            resize_proposals = [proposal.rescale(1. / self.det_margin) for proposal in proposals]
         for layer_name in self.blocks:
             x = F.relu(getattr(self, layer_name)(x))
 

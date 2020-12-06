@@ -4,7 +4,7 @@ export PYTHONPATH=$PYTHONPATH:/DATA/disk1/fsy_scenetext/ContourNet_v2
 # CUDA_VISIBLE_DEVICES=0,1 python2 -m torch.distributed.launch --nproc_per_node=$NGPUS --master_port 24743 tools/train_net.py \
 # 	--config-file "configs/slpr_gaussian/ctw/train_ub_rotate.yaml" \
 # 	--skip-test
-export NGPUS=2
-CUDA_VISIBLE_DEVICES=0,2 python -m torch.distributed.launch --nproc_per_node=$NGPUS --master_port 23644 tools/train_net.py \
-	--config-file "configs/slpr_gaussian/ctw/train_ub_ciou.yaml" \
+export NGPUS=1
+CUDA_VISIBLE_DEVICES=0 python -m torch.distributed.launch --nproc_per_node=$NGPUS --master_port 23621 tools/train_net.py \
+	--config-file "configs/afub/ic15/debug_rrpn.yaml" \
 	--skip-test

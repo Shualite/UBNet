@@ -56,6 +56,9 @@ class MaskPostProcessor(nn.Module):
             bbox = RBoxList(box.bbox, box.size, mode="xywha")
             for field in box.fields():
                 bbox.add_field(field, box.get_field(field))
+            # print("box prob:", prob.shape, np.unique(prob[0].data.cpu().numpy())[-10:])
+            scores = bbox.get_field("scores")
+            # print("box_0:", scores[0], scores.shape)
             bbox.add_field("mask", prob)
             results.append(bbox)
 
@@ -139,18 +142,26 @@ def paste_mask_in_image(mask, box, im_h, im_w, thresh=0.5, padding=1):
     mask = F.interpolate(mask, size=(h, w), mode='bilinear', align_corners=False)
     mask = mask[0][0]
 
+    # print("mask:", mask.shape, np.unique(mask.data.cpu().numpy())[-10:])
+    # print("mask:", thresh, np.sum((mask.data.cpu().numpy() > thresh) * 1))
+
     if thresh >= 0:
-        mask = mask > thresh
+        mask = ((mask > thresh) * 255).to(torch.uint8)
     else:
         # for visualization and debugging, we also
         # allow it to return an unmodified mask
         mask = (mask * 255).to(torch.uint8)
 
     mask_np = mask.data.cpu().numpy()
+
+    mask_score = np.mean(mask_np) / 255.0
+
+    # cv2.imshow("mask:", mask_np)
+    # cv2.waitKey(0)
     # print('box:', box)
     # rotate pts to fit the angles and fill contours
     im_mask = np.zeros((im_h, im_w), dtype=np.uint8)
-    contours = cv2.findContours((mask_np*1).astype(np.uint8), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours = cv2.findContours(mask_np, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     # pts_string = torch.from_numpy(contours[1][0].reshape(-1))
     # print('contours:', len(contours[1]), pts_string[0::2])
     # print('mask_center:', box)
@@ -164,17 +175,20 @@ def paste_mask_in_image(mask, box, im_h, im_w, thresh=0.5, padding=1):
     #    rt_pts += torch.tensor([box[0], box[1]]).float() - torch.tensor([w // 2, h // 2]).float()
     #    # print('rt_ctr:', rt_pts.data.cpu().numpy().mean(0))
     #    res_cons.append(rt_pts)
-
-    res_cons = [(rotate_pts(
-        torch.from_numpy(
-            pts.reshape(-1)).float(), angle.float(), (w//2, h//2)).reshape(-1, 1, 2) +
-                 torch.tensor([box[0], box[1]]).float() -
-                 torch.tensor([w // 2, h // 2]).float())
-                for pts in contours[1]]
-    res_cons = [res_group.data.cpu().numpy().astype(np.int) for res_group in res_cons]
+    # print("***********")
+    # print("contours[0]:", contours[0])
+    if not contours[0] is None:
+        res_cons = [(rotate_pts(
+            torch.from_numpy(
+                pts.reshape(-1)).float(), angle.float(), (w//2, h//2)).reshape(-1, 1, 2) +
+                     torch.tensor([box[0], box[1]]).float() -
+                     torch.tensor([w // 2, h // 2]).float())
+                    for pts in contours[0] if not pts is None]
+        res_cons = [res_group.data.cpu().numpy().astype(np.int) for res_group in res_cons]
     # print('res_cons:', res_cons)
-    cv2.fillPoly(im_mask, res_cons, 255) #drawContours
-
+        cv2.fillPoly(im_mask, res_cons, 255) #drawContours
+        # cv2.imshow("im_mask", im_mask)
+        # cv2.waitKey(0)
 
     '''
     
@@ -187,7 +201,7 @@ def paste_mask_in_image(mask, box, im_h, im_w, thresh=0.5, padding=1):
         (y_0 - box[1]) : (y_1 - box[1]), (x_0 - box[0]) : (x_1 - box[0])
     ]
     '''
-    return torch.from_numpy(im_mask), res_cons
+    return torch.from_numpy(im_mask), res_cons, mask_score
 
 
 class Masker(object):
@@ -206,10 +220,16 @@ class Masker(object):
 
         res_canvas = []
         res_polygons = []
+        res_maskscore = []
+        # scores = boxes.get_field("scores")
+        cnt = 0
         for mask, box in zip(masks, boxes.bbox):
-            canvas, polygons = paste_mask_in_image(mask[0], box, im_h, im_w, self.threshold, self.padding)
+            # print("scores:", scores[cnt])
+            cnt += 1
+            canvas, polygons, mask_score = paste_mask_in_image(mask[0], box, im_h, im_w, self.threshold, self.padding)
             res_canvas.append(canvas)
             res_polygons.append(polygons)
+            res_maskscore.append(mask_score)
 
         # res = [
         #    paste_mask_in_image(mask[0], box, im_h, im_w, self.threshold, self.padding)
@@ -217,9 +237,10 @@ class Masker(object):
         # ]
         if len(res_canvas) > 0:
             res_canvas = torch.stack(res_canvas, dim=0)[:, None]
+            res_maskscore = torch.from_numpy(np.array(res_maskscore)).float()
         else:
             res_canvas = masks.new_empty((0, 1, masks.shape[-2], masks.shape[-1]))
-        return res_canvas, res_polygons
+        return res_canvas, res_polygons, res_maskscore
 
     def __call__(self, masks, boxes):
         if isinstance(boxes, RBoxList):
@@ -232,12 +253,14 @@ class Masker(object):
         # If not we should make it compatible.
         result_canvas = []
         result_polygons = []
+        result_maskscore = []
         for mask, box in zip(masks, boxes):
             assert mask.shape[0] == len(box), "Number of objects should be the same."
-            res_can, res_poly = self.forward_single_image(mask, box)
+            res_can, res_poly, res_maskscore = self.forward_single_image(mask, box)
             result_canvas.append(res_can)
             result_polygons.append(res_poly)
-        return result_canvas, result_polygons
+            result_maskscore.append(res_maskscore)
+        return result_canvas, result_polygons, result_maskscore
 
 
 def make_roi_mask_post_processor(cfg):

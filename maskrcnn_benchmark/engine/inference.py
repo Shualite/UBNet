@@ -138,7 +138,7 @@ def inference(
             **extra_args)
     
     if "CTW1500_test" in cfg.DATASETS.TEST:
-        precision, recall, hmean = eval_ctw(os.path.join(cfg.OUTPUT_DIR, 'txt'))
+        precision, recall, hmean = eval_ctw(os.path.abspath(os.path.join(cfg.OUTPUT_DIR, 'txt')))
     if "ic15_test" in cfg.DATASETS.TEST:
         res = eval_ic15(os.path.abspath(os.path.join(cfg.OUTPUT_DIR, 'inference', 'ic15_test','ub.json')))
         precision, recall, hmean = res[0], res[1], res[2]

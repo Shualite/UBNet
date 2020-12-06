@@ -30,7 +30,6 @@ import random
 import numpy as np
 
 RANDOM_FIX = True
-sync_bn = True
 
 if RANDOM_FIX:
     cudnn.benchmark = False
@@ -42,18 +41,6 @@ if RANDOM_FIX:
     random.seed(seed)
     np.random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
-
-
-try:
-    import apex.optimizers as apex_optim
-    from apex.parallel import DistributedDataParallel as DDP
-    from apex.fp16_utils import *
-    from apex import amp
-    from apex.multi_tensor_apply import multi_tensor_applier
-    import apex
-except ImportError:
-    raise ImportError("Please install apex from https://www.github.com/nvidia/apex to run this example.")
-
 
 
 def train(cfg, local_rank, distributed):

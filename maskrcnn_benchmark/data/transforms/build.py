@@ -1,6 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 from . import transforms as T
-
+from maskrcnn_benchmark.config import cfg
 
 def build_transforms(cfg, is_train=True):
     if is_train:
@@ -35,46 +35,43 @@ def build_transforms(cfg, is_train=True):
         mean=cfg.INPUT.PIXEL_MEAN, std=cfg.INPUT.PIXEL_STD, to_bgr255=to_bgr255
     )
 
-    transform = T.Compose(
-        [
-            T.RandomCrop(crop_prob),
+    if 'RRCNN' in cfg.MODEL.META_ARCHITECTURE:
+        transform = T.Compose(
+            [
+                # T.RandomCrop(crop_prob),
+                T.RandomBrightness(crop_prob),
+                T.RandomContrast(crop_prob),
+                T.RandomHue(crop_prob),
+                T.RandomSaturation(crop_prob),
+                T.RandomGamma(crop_prob),
+                T.Resize(min_size, max_size),
+                # T.RandomHorizontalFlip(flip_prob),
+                # ori rpn
+                # T.RandomRotation(rotate_prob, rotate_degree),
+                # rrpn
+                # T.RRandomRotation(prob=rotate_prob, r_range=cfg.INPUT.ROTATION_RANGE, fixed_angle=-1, gt_margin=cfg.MODEL.RRPN.GT_BOX_MARGIN),
+                T.ToTensor(),
+                normalize_transform,
+            ]
+        )
+    else:
+        transform = T.Compose(
+            [
+                T.RandomCrop(crop_prob),
 
-            T.RandomBrightness(crop_prob),
-            T.RandomContrast(crop_prob),
-            T.RandomHue(crop_prob),
-            T.RandomSaturation(crop_prob),
-            T.RandomGamma(crop_prob),
-            T.Resize(min_size, max_size),
+                T.RandomBrightness(crop_prob),
+                T.RandomContrast(crop_prob),
+                T.RandomHue(crop_prob),
+                T.RandomSaturation(crop_prob),
+                T.RandomGamma(crop_prob),
+                T.Resize(min_size, max_size),
 
-            T.RandomHorizontalFlip(flip_prob),
-            T.RandomRotation(rotate_prob, rotate_degree),
-            
-            T.ToTensor(),
-            normalize_transform,
-        ]
-    )
-
-    # # for debug
-    # transform = T.Compose(
-    #     [
-    #         # T.RandomCrop(crop_prob),
-
-    #         T.RandomBrightness(crop_prob),
-    #         T.RandomContrast(crop_prob),
-    #         T.RandomHue(crop_prob),
-    #         T.RandomSaturation(crop_prob),
-    #         T.RandomGamma(crop_prob),
-    #         T.Resize(min_size, max_size),
-
-    #         # T.RandomHorizontalFlip(flip_prob),
-    #         # ori rpn
-    #         # T.RandomRotation(rotate_prob, rotate_degree),
-    #         # rrpn
-    #         # T.RRandomRotation(prob=rotate_prob, r_range=cfg.INPUT.ROTATION_RANGE, fixed_angle=-1, gt_margin=cfg.MODEL.RRPN.GT_BOX_MARGIN),
-            
-    #         T.ToTensor(),
-    #         normalize_transform,
-    #     ]
-    # )
+                T.RandomHorizontalFlip(flip_prob),
+                T.RandomRotation(rotate_prob, rotate_degree),
+                
+                T.ToTensor(),
+                normalize_transform,
+            ]
+        )
     
     return transform

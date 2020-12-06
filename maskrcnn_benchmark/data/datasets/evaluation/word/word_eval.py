@@ -20,6 +20,7 @@ import torch.nn as nn
 from tensorboardX import SummaryWriter
 
 writer = None
+writer_tmp = None
 
 def do_coco_evaluation(
         dataset,
@@ -60,6 +61,7 @@ def do_coco_evaluation(
         if cfg.DEBUG:
             global writer
             writer = SummaryWriter('./debug/ubnet')
+            writer_tmp = SummaryWriter('./debug/vds')
         logger.info("Preparing ub results")
         coco_results["ub"] = prepare_for_ub_regression(predictions, dataset)
     logger.info("Do not apply evaluating predictions")
@@ -512,6 +514,22 @@ def sort_by_var(points_with_var, percent=0.6):
     idx = idx[:int(len(idx)*0.6)]
     return points[idx,:], var[idx]
 
+def polar_group(center, result_points_after_var, var):
+    alpha = result_points_after_var - center
+    beta = np.array((1,0)).reshape((-1,2))
+    
+    alpha_norm = np.linalg.norm(alpha, axis=1)
+    beta_norm = np.linalg.norm(beta, axis=1)
+    
+    a_dot_b=alpha.dot(beta.T).reshape(-1)
+    
+    cos_theta=np.arccos(a_dot_b/(alpha_norm*beta_norm))
+    
+    du = np.rad2deg(cos_theta)
+    index = np.argsort(du)
+    
+    return result_points_after_var[index], var[index]
+
 def ub_to_contour_ic(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None, ub_h_var=None):
     ratio = 12
     vis_w_var = torch.pow(torch.exp(ub_w_var), ratio) * ratio
@@ -596,6 +614,9 @@ def ub_to_contour_ic(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None,
     return result_points.reshape(-1)
 
 def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None, ub_h_var=None):
+    HORIZONTAL = 0
+    VERTICAL = 1
+    
     ratio = 12
     if ub_w_var is not None:
         vis_w_var = torch.pow(torch.exp(ub_w_var), ratio) * ratio
@@ -628,6 +649,20 @@ def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None
     hori_points = []
     points_with_var = []
     font = cv2.FONT_HERSHEY_SIMPLEX
+    
+    # orient perception by var
+    orient = HORIZONTAL if vis_w_var.mean() <= vis_h_var.mean() else VERTICAL
+    center = None
+    if orient == HORIZONTAL:
+        top, down = ub_w[border_w//2]
+        top, down = int(top*border_len), int((1-down)*border_len)
+        center = [border_len//2, (top+down)//2]
+    else:
+        left, right = ub_h[border_w//2]
+        left, right = int(left*border_len), int((1-right)*border_len)
+        center = [(left+right)//2, border_len//2]
+        
+        
     for idx, i in enumerate(range(border_len)[::w_stride]):
         top, down = ub_w[idx]
         top, down = int(top*border_len), int((1-down)*border_len)
@@ -678,12 +713,17 @@ def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None
     # hori_points = np.array(hori_points)
     # hori_points = hori_points * (box_w/border_len, box_h/border_len)
     
+    
     points_with_var = np.array(points_with_var)
-    result_points_after_var, var = sort_by_var(points_with_var, 0.8)
+    result_points_after_var, var = sort_by_var(points_with_var, 0.7)
+    # import ipdb;ipdb.set_trace()
+    # TODO: sort error
+    result_points_after_var, var = polar_group(center, result_points_after_var, var)
     [cv2.circle(crop_img_var, tuple(np.array((pp[0]*ratio+MARGIN, pp[1]*ratio+MARGIN), dtype=np.int)), int(np.power(np.exp(vv), ratio) * ratio), (0,255,0), 2) for pp, vv in zip(result_points_after_var, var)]
     
     result_points_after_var = result_points_after_var * (box_w/border_len, box_h/border_len)
     result_points_after_var = result_points_after_var + np.array(p_temp_box[:2])
+    
     
     # crop_img = img[vis_box[1]:vis_box[3], vis_box[0]:vis_box[2],:]
     # crop_img = cv2.resize(crop_img, (border_len*ratio, border_len*ratio), interpolation = cv2.INTER_AREA)
@@ -712,7 +752,7 @@ def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None
         writer.add_image(path.split('/')[-1].split('.')[0]+'_varsort_0.6', crop_img_var, global_step=num)
         writer.flush()
 
-    return result_points_after_var.reshape(-1)
+    return result_points.reshape(-1)
 
 def prepare_for_ub_regression(predictions, dataset):
     import numpy as np
@@ -997,7 +1037,8 @@ def evaluate_predictions_on_coco(
 ):
     import json
     import sys
-    from StringIO import StringIO
+    # from StringIO import StringIO
+    from io import StringIO
 
     print('writing results to ' + json_result_file)
     with open(json_result_file, "w") as f:

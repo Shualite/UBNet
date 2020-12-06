@@ -5,6 +5,8 @@
 #include "RROIAlign.h"
 #include "SigmoidFocalLoss.h"
 #include "dcn_v2.h"
+#include "ROIAlignRotated.h"
+#include "ROIAlignRotatedKeep.h"
 
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
@@ -22,4 +24,20 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 
   m.def("rroi_align_forward", &RROIAlign_forward, "RROIAlign_forward");
   m.def("rroi_align_backward", &RROIAlign_backward, "RROIAlign_backward");
+  m.def(
+      "roi_align_rotated_forward",
+      &ROIAlignRotated_forward,
+      "Forward pass for Rotated ROI-Align Operator");
+  m.def(
+      "roi_align_rotated_backward",
+      &ROIAlignRotated_backward,
+      "Backward pass for Rotated ROI-Align Operator");
+  m.def(
+      "roi_align_rotated_keep_forward",
+      &ROIAlignRotatedKeep_forward,
+      "Forward pass for Rotated-Keep ROI-Align Operator");
+  m.def(
+      "roi_align_rotated_keep_backward",
+      &ROIAlignRotatedKeep_backward,
+      "Backward pass for Rotated-Keep ROI-Align Operator");
 }

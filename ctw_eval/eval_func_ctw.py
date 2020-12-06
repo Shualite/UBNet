@@ -12,7 +12,7 @@ gt_root = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'ctw_gt')
 # 2）数据存储格式和评测脚本要一致
 
 def get_pred(path):
-    lines = file_util.read_file(path).split('\n')
+    lines = read_file(path).split('\n')
     bboxes = []
     for line in lines:
         if line == '':
@@ -25,7 +25,7 @@ def get_pred(path):
     return bboxes
 
 def get_gt(path):
-    lines = file_util.read_file(path).split('\n')
+    lines = read_file(path).split('\n')
     bboxes = []
     for line in lines:
         if line == '':
@@ -54,15 +54,48 @@ def get_intersection(pD,pG):
         return 0
     return pInt.area()
 
-def eval_ctw(pred_root):
+def read_dir(root):
+	file_path_list = []
+	for file_path, dirs, files in os.walk(root):
+		for file in files:
+			file_path_list.append(os.path.join(file_path, file).replace('\\', '/'))
+	file_path_list.sort()
+	return file_path_list
+
+
+def read_file(file_path):
+	file_object = open(file_path, 'r')
+	file_content = file_object.read()
+	file_object.close()
+	return file_content
+
+def write_file(file_path, file_content):
+	if file_path.find('/') != -1:
+		father_dir = '/'.join(file_path.split('/')[0:-1])
+		if not os.path.exists(father_dir):
+			os.makedirs(father_dir)
+	file_object = open(file_path, 'w')
+	file_object.write(file_content)
+	file_object.close()
+
+
+def write_file_not_cover(file_path, file_content):
+	father_dir = '/'.join(file_path.split('/')[0:-1])
+	if not os.path.exists(father_dir):
+		os.makedirs(father_dir)
+	file_object = open(file_path, 'a')
+	file_object.write(file_content)
+	file_object.close()
+
+def eval_ctw(pred_root='/DATA/disk1/fsy_scenetext/ContourNet_v2/output/slpr_gaussian/ctw/baseline/txt'):
     os.chdir('/DATA/disk1/fsy_scenetext/ContourNet_v2/ctw_eval/')
-    from . import file_util
+    
     th = 0.5
-    pred_list = file_util.read_dir(pred_root)
+    pred_list = read_dir(pred_root)
 
     tp, fp, npos = 0, 0, 0
     
-    for pred_path in pred_list:
+    for idx, pred_path in enumerate(pred_list):
         preds = get_pred(pred_path)
         gt_path = os.path.join(gt_root, pred_path.split('/')[-1])
         gts = get_gt(gt_path)
@@ -71,7 +104,7 @@ def eval_ctw(pred_root):
         cover = set()
         for pred_id, pred in enumerate(preds):
             pred = np.array(pred)
-            pred = pred.reshape(pred.shape[0] / 2, 2)
+            pred = pred.reshape(int(pred.shape[0] / 2), 2)
             # if pred.shape[0] <= 2:
             #     continue
             pred_p = plg.Polygon(pred)
@@ -79,9 +112,12 @@ def eval_ctw(pred_root):
             flag = False
             for gt_id, gt in enumerate(gts):
                 gt = np.array(gt)
-                gt = gt.reshape(gt.shape[0] / 2, 2)
+                gt = gt.reshape(int(gt.shape[0] / 2), 2)
                 gt_p = plg.Polygon(gt)
 
+                # if idx==61 and pred_id==2 and gt_id==2:
+                #     import ipdb;ipdb.set_trace()
+                    
                 union = get_union(pred_p, gt_p)
                 inter = get_intersection(pred_p, gt_p)
 
@@ -104,3 +140,7 @@ def eval_ctw(pred_root):
     
     os.chdir('/DATA/disk1/fsy_scenetext/ContourNet_v2/')
     return (precision, recall, hmean)
+
+
+if __name__ == '__main__':
+    eval_ctw()

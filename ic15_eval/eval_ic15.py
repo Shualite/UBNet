@@ -66,7 +66,6 @@ for isc in lsc:
 	os.chdir("../")
 	cmd = "python "+eval_dir+"script.py "+"-g="+eval_dir+"ch4_gt.zip -s=mb_ch4.zip"
 	output = os.popen(cmd).read()
-	import ipdb;ipdb.set_trace()
 	print(output)
 	f.writelines("========= "+str(isc)+":\n")
 	lout = output.split('\n')

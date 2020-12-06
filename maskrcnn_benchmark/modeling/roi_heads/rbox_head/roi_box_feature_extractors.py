@@ -8,6 +8,8 @@ from maskrcnn_benchmark.modeling.backbone import resnet
 from maskrcnn_benchmark.modeling.poolers import Pooler, PyramidRROIAlign
 from maskrcnn_benchmark.modeling.make_layers import group_norm
 from maskrcnn_benchmark.modeling.make_layers import make_fc
+from maskrcnn_benchmark.layers import Mish
+
 import numpy as np
 
 @registry.RROI_BOX_FEATURE_EXTRACTORS.register("ResNet50Conv5ROIFeatureExtractor")
@@ -53,6 +55,44 @@ class FPN2MLPFeatureExtractor(nn.Module):
     def __init__(self, cfg):
         super(FPN2MLPFeatureExtractor, self).__init__()
 
+        resolution = cfg.MODEL.RROI_BOX_HEAD.POOLER_RESOLUTION
+        scales = cfg.MODEL.RROI_BOX_HEAD.POOLER_SCALES
+        sampling_ratio = cfg.MODEL.RROI_BOX_HEAD.POOLER_SAMPLING_RATIO
+        pooler = PyramidRROIAlign(
+            output_size=(resolution, resolution),
+            scales=scales,
+            sampling_ratio=sampling_ratio
+        )
+        input_size = cfg.MODEL.BACKBONE.OUT_CHANNELS * resolution ** 2
+        representation_size = cfg.MODEL.RROI_BOX_HEAD.MLP_HEAD_DIM
+        use_gn = cfg.MODEL.RROI_BOX_HEAD.USE_GN
+        self.pooler = pooler
+        self.fc6 = make_fc(input_size, representation_size, use_gn)
+        self.fc7 = make_fc(representation_size, representation_size, use_gn)
+
+        self.dropout = nn.Dropout(0.5)
+
+        self.activation = Mish() if cfg.MODEL.RROI_BOX_HEAD.MISH else nn.ReLU()
+
+    def forward(self, x, proposals):
+        x = self.pooler(x, proposals)
+        x = x.view(x.size(0), -1)
+
+        x = self.activation(self.fc6(x))
+        x = self.activation(self.fc7(x))
+
+        return x
+
+
+@registry.RROI_BOX_FEATURE_EXTRACTORS.register("FPN2MLPIoUFeatureExtractor")
+class FPN2MLPIoUFeatureExtractor(nn.Module):
+    """
+    Heads for FPN for classification
+    """
+
+    def __init__(self, cfg):
+        super(FPN2MLPIoUFeatureExtractor, self).__init__()
+
         resolution = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
         scales = cfg.MODEL.ROI_BOX_HEAD.POOLER_SCALES
         sampling_ratio = cfg.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO
@@ -67,33 +107,20 @@ class FPN2MLPFeatureExtractor(nn.Module):
         self.fc6 = make_fc(input_size, representation_size, use_gn)
         self.fc7 = make_fc(representation_size, representation_size, use_gn)
 
-    def forward(self, x, proposals, image_tensor):
-        # TODO: RuntimeError: cuda runtime error (9) sometimes
-        
-        # from tensorboardX import SummaryWriter
-        # writer = SummaryWriter('./debug/rroi')
-        # img = image_tensor[0]
-        
-        # img = img - img.min()
-        # img = img/img.max()*255.0
-        # img = nn.ConstantPad2d(padding=200, value=100)(img)
-        # print(img.shape)
-        # img = torch.tensor(img.clone().detach(), dtype=torch.uint8)
-        
-        # writer.add_image('ori_image', img, global_step=10)
-        # img = img.cpu().numpy()
-        # proposals_on_image = proposals[0].visualize(image_tensor[0])
-        # writer.add_image('bbox_image', proposals_on_image, global_step=10)
-        # writer.flush()
+        self.IoU_fc6 = make_fc(input_size, representation_size, use_gn)
+        self.IoU_fc7 = make_fc(representation_size, representation_size, use_gn)
 
-
+    def forward(self, x, proposals):
         x = self.pooler(x, proposals)
-        x = x.view(x.size(0), -1)
+        IoU_x = x = x.view(x.size(0), -1)
 
         x = F.relu(self.fc6(x))
         x = F.relu(self.fc7(x))
 
-        return x
+        IoU_x = F.relu(self.IoU_fc6(IoU_x))
+        IoU_x = F.relu(self.IoU_fc7(IoU_x))
+
+        return x, IoU_x
 
 
 @registry.RROI_BOX_FEATURE_EXTRACTORS.register("FPNXconv1fcFeatureExtractor")
@@ -161,6 +188,6 @@ class FPNXconv1fcFeatureExtractor(nn.Module):
 
 def make_roi_box_feature_extractor(cfg):
     func = registry.RROI_BOX_FEATURE_EXTRACTORS[
-        cfg.MODEL.ROI_BOX_HEAD.FEATURE_EXTRACTOR
+        cfg.MODEL.RROI_BOX_HEAD.FEATURE_EXTRACTOR
     ]
     return func(cfg)

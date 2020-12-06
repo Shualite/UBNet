@@ -216,13 +216,27 @@ _C.MODEL.RRPN = CN()
 _C.MODEL.RRPN.USE_FPN = True
 _C.MODEL.RRPN.ANCHOR_SIZES = (32, 64, 128, 256, 512)
 _C.MODEL.RRPN.ASPECT_RATIOS = (0.5, 1.0, 2.0)
-_C.MODEL.RRPN.ANCHOR_STRIDE = (16,)
+_C.MODEL.RRPN.ANCHOR_STRIDE = (4, 8, 16, 32, 64)
 _C.MODEL.RRPN.ANCHOR_ANGLE = (-30.0, 0.0, 30.0, 60.0, 90.0, 120.0,)
 _C.MODEL.RRPN.STRADDLE_THRESH = -1
 _C.MODEL.RRPN.GT_BOX_MARGIN = 1.4
 _C.MODEL.EDGE_PUNISHED = False
 
 
+# ---------------------------------------------------------------------------- #
+# Anchor-Free RPN HEADS options
+# ---------------------------------------------------------------------------- #
+_C.MODEL.ARPN = CN()
+_C.MODEL.ARPN.BASE_SIZE = 640.
+_C.MODEL.ARPN.SCALE_STACK = (0.25, 0.125, 0.0625, 0.03125, 0.015625)
+_C.MODEL.ARPN.SIZE_STACK = (32, 64, 128, 256)
+_C.MODEL.ARPN.NMS_TYPE = "remove"
+_C.MODEL.ARPN.NMS_THRESH = 0.7
+_C.MODEL.ARPN.SCORE_THRESH = 0.01
+_C.MODEL.ARPN.CONV_STACK = 1
+_C.MODEL.ARPN.USE_GN = False
+_C.MODEL.ARPN.MC_NUM = 98 # The same num with data_cache/alphabet_IC13_IC15_Syn800K_pro.txt
+_C.MODEL.ARPN.USE_MISH = False
 
 # ---------------------------------------------------------------------------- #
 # ROI HEADS options
@@ -260,6 +274,11 @@ _C.MODEL.ROI_HEADS.SCORE_THRESH = 0.05
 _C.MODEL.ROI_HEADS.NMS = 0.5
 # Maximum number of detections to return per image (100 is based on the limit established for the COCO dataset)
 _C.MODEL.ROI_HEADS.DETECTIONS_PER_IMG = 100
+# We have "remove" or "merge", but "merge is box only"
+_C.MODEL.ROI_HEADS.NMS_TYPE = "remove"
+# Discard high IoU samples
+_C.MODEL.ROI_HEADS.HIGHEST_DISCARD = False
+_C.MODEL.ROI_HEADS.HIGHEST_THRESHOLD = 0.75
 
 
 _C.MODEL.ROI_BOX_HEAD = CN()
@@ -277,11 +296,29 @@ _C.MODEL.ROI_BOX_HEAD.USE_GN = False
 # Dilation
 _C.MODEL.ROI_BOX_HEAD.DILATION = 1
 _C.MODEL.ROI_BOX_HEAD.CONV_HEAD_DIM = 256
+_C.MODEL.ROI_BOX_HEAD.NUM_STACKED_CONVS = 4
+_C.MODEL.ROI_BOX_HEAD.IOU_BRANCH = False
+_C.MODEL.ROI_BOX_HEAD.MISH = False
 
 #### 123123
 _C.MODEL.ROI_BOX_HEAD.NUM_STACKED_CONVS = 4
 _C.MODEL.ROI_BOX_HEAD.CLASS_WEIGHT = 0.1
 _C.MODEL.ROI_BOX_HEAD.DEFORMABLE_POOLING = False
+
+
+# RROI Settings
+_C.MODEL.RROI_BOX_HEAD = CN()
+_C.MODEL.RROI_BOX_HEAD.NUM_CLASSES = 2
+# Hidden layer dimension when using an MLP for the RoI box head
+_C.MODEL.RROI_BOX_HEAD.MLP_HEAD_DIM = 1024
+_C.MODEL.RROI_BOX_HEAD.POOLER_SCALES = (0.25, 0.125, 0.0625, 0.03125)
+_C.MODEL.RROI_BOX_HEAD.FEATURE_EXTRACTOR = "FPN2MLPFeatureExtractor"
+_C.MODEL.RROI_BOX_HEAD.PREDICTOR = "FPNPredictor"
+_C.MODEL.RROI_BOX_HEAD.POOLER_RESOLUTION = 14
+_C.MODEL.RROI_BOX_HEAD.POOLER_SAMPLING_RATIO = 2
+_C.MODEL.RROI_BOX_HEAD.USE_GN = False
+_C.MODEL.RROI_BOX_HEAD.MISH = False
+
 
 _C.MODEL.ROI_MASK_HEAD = CN()
 # Whether or not resize and translate masks to the input image.

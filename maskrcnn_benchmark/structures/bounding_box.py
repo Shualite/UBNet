@@ -193,6 +193,34 @@ class RBoxList(object):
             bbox.add_field(k, v)
         return bbox
 
+    def set2rboxes(self):
+
+        def set2rbox(proposals):
+            # pred_w = ch_boxes
+            # for target in targets:
+            ch_boxes = proposals.clone()
+
+            gt_w = ch_boxes[:, 2]
+            gt_h = ch_boxes[:, 3]
+            gt_a = ch_boxes[:, 4]
+
+            gt_a_cl = gt_a + (gt_w < gt_h).float() * 90.
+
+            gt_w_cl = gt_w * (gt_w >= gt_h).float() + gt_h * (gt_w < gt_h).float()
+            gt_h_cl = gt_h * (gt_w >= gt_h).float() + gt_w * (gt_w < gt_h).float()
+
+            ch_boxes[:, 2] = gt_w_cl
+            ch_boxes[:, 3] = gt_h_cl
+            ch_boxes[:, 4] = gt_a_cl
+
+            return ch_boxes
+
+        new_boxes = set2rbox(self.bbox)
+        bbox = RBoxList(new_boxes, self.size, self.mode)
+        for k, v in self.extra_fields.items():
+            bbox.add_field(k, v)
+        return bbox
+
     def __getitem__(self, item):
         bbox = RBoxList(self.bbox[item], self.size, self.mode)
         for k, v in self.extra_fields.items():
@@ -274,7 +302,7 @@ class RBoxList(object):
         for idx, bbox in enumerate(self.bbox):
             bbox = bbox.cpu().numpy()
             # if bbox[0]<=0 or bbox[1]<=0 or bbox[0]>=w or bbox[1]>=h
-            rect = ((bbox[0]+200, bbox[1]+200), (bbox[2], bbox[3]), bbox[4])
+            rect = ((bbox[0]+200, bbox[1]+200), (bbox[2], bbox[3]), -bbox[4])
             box = cv2.boxPoints(rect)
             box = np.int0(box)
             

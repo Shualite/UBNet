@@ -166,18 +166,18 @@ class MaskRCNNLossComputation(object):
         labels_pos = labels[positive_inds]
 
         if DEBUG:
-            print('labels:', labels.shape)
-            print('mask_targets:', mask_targets.shape)
-            print('proposals:', proposals)
-            print('mask_logits:', mask_logits.shape)
+            # print('labels:', labels.shape)
+            # print('mask_targets:', mask_targets.shape)
+            # print('proposals:', proposals)
+            # print('mask_logits:', mask_logits.shape)
             first_target = (mask_targets[0, ...].data.cpu().numpy() * 255).astype(np.uint8)
             first_mask = (mask_logits[positive_inds][0, 1].sigmoid().data.cpu().numpy() * 255).astype(np.uint8)
 
-            print('first_target:', first_target.shape)
-            print('first_mask:', first_mask.shape)
+            # print('first_target:', first_target.shape, np.unique(mask_logits[positive_inds][0, 1].sigmoid().data.cpu().numpy())[-10:])
+            # print('first_mask:', first_mask.shape)
 
             first_box = proposals[0].bbox[0]
-            print('first_box:', first_box)
+            # print('first_box:', first_box, proposals[0].get_field("scores"))
 
             first_target = Image.fromarray(first_target)
             first_mask = Image.fromarray(first_mask)
@@ -185,7 +185,6 @@ class MaskRCNNLossComputation(object):
             first_mask = first_mask.resize((int(first_box[2]), int(first_box[3])))
             first_target.save('first_target.jpg', 'jpeg')
             first_mask.save('first_mask.jpg', 'jpeg')
-
 
         # torch.mean (in binary_cross_entropy_with_logits) doesn't
         # accept empty tensors, so handle it separately
