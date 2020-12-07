@@ -104,7 +104,6 @@ def inference(
     total_timer.tic()
     predictions = compute_on_dataset(model, data_loader, device, inference_timer)
 
-
     # wait for all processes to complete before measuring the time
     synchronize()
     total_time = total_timer.toc()

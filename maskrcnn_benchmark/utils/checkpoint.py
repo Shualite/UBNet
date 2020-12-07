@@ -74,10 +74,12 @@ class Checkpointer(object):
             self.scheduler.load_state_dict(checkpoint.pop("scheduler"))
         
         if cfg.OUTPUT_DIR.find('pretrain') != -1:
-            checkpoint.pop("optimizer")
-            checkpoint.pop("scheduler")
-            checkpoint.pop("iteration")
-
+            if "optimizer" in checkpoint:
+                checkpoint.pop("optimizer")
+            if "scheduler" in checkpoint:
+                checkpoint.pop("scheduler")
+            if "iteration" in checkpoint:
+                checkpoint.pop("iteration")
         # return any further checkpoint data
         return checkpoint
 

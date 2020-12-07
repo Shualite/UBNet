@@ -198,7 +198,6 @@ class Masker(object):
 
 
 def make_roi_boundary_post_processor(cfg):
-    import ipdb;ipdb.set_trace
     if cfg.MODEL.ROI_MASK_HEAD.POSTPROCESS_MASKS:
         mask_threshold = cfg.MODEL.ROI_MASK_HEAD.POSTPROCESS_MASKS_THRESHOLD ## 0.5
         masker = Masker(threshold=mask_threshold, padding=1)

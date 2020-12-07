@@ -20,8 +20,8 @@ def rotate_cpu_nms(dets, threshold):
  
 	order = scores.argsort()[::-1]
 	ndets = dets.shape[0]
-	print "nms start"
-	print ndets
+	print ("nms start")
+	print (ndets)
 	suppressed = np.zeros((ndets), dtype = np.int)
 	
 	
@@ -53,7 +53,7 @@ def rotate_cpu_nms(dets, threshold):
 				
 				order_pts = cv2.convexHull(int_pts, returnPoints = True)
 				#t2 = time.time()
-    				int_area = cv2.contourArea(order_pts)				
+				int_area = cv2.contourArea(order_pts)
 				#t3 = time.time()
 				ovr = int_area*1.0/(area_r1+area_r2-int_area)
 				
@@ -61,8 +61,8 @@ def rotate_cpu_nms(dets, threshold):
 				suppressed[j]=1
 			#print t1 - tic, t2 - t1, t3 - t2
 			#print 
-	print time.time() - tic
-	print "nms done"
+	print (time.time() - tic)
+	print ("nms done")
 	return keep
 
 
@@ -82,6 +82,7 @@ if __name__ == "__main__":
 	#for ind in range(4500):
 	#	boxes[ind, 5] = 0
 
+	import ipdb;ipdb.set_trace()
 	a = rotate_cpu_nms(boxes, 0.7)
 
-	print boxes[a]
+	print (boxes[a])

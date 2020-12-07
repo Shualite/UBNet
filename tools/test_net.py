@@ -65,7 +65,10 @@ def main():
     checkpointer = DetectronCheckpointer(cfg, model, save_dir=output_dir)
     _ = checkpointer.load(cfg.MODEL.WEIGHT)
 
-    iou_types = ("bbox",)
+    if 'RRCNN' in cfg.MODEL.META_ARCHITECTURE:
+        iou_types = ("rbox")
+    else:
+        iou_types = ("bbox",)
     if cfg.MODEL.BOUNDARY_ON:
         iou_types = iou_types + ("bo",)
     if cfg.MODEL.UB_ON:

@@ -146,8 +146,8 @@ class RWordDataset(torchvision.datasets.coco.CocoDetection):
         if self.transforms is not None:
             img, target = self.transforms(img, target)
 
-        return img, target, path
-        # return img, target, idx, path
+        # return img, target, path
+        return img, target, idx, path
 
     def get_img_info(self, index):
         img_id = self.id_to_img_map[index]

@@ -26,7 +26,10 @@ class DatasetCatalog(object):
             'mlt/imgs',
             'mlt/annotations/mlt_train.json'
         ),
-        
+        "synthtext_train": (
+            'synthtext/SynthText',
+            'synthtext/annotations/synthtext_train.json'
+        ),
 }
 
     @staticmethod

@@ -5,7 +5,7 @@ from .rbox_head.box_head import build_roi_box_head
 from .rec_head.rec_head import build_roi_rec_head
 from .rmask_head.mask_head import build_roi_mask_head
 
-_DEBUG = True
+_DEBUG = False
 
 class CombinedROIHeads(torch.nn.ModuleDict):
     """
