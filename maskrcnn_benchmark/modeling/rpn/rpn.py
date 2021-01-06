@@ -10,6 +10,7 @@ from maskrcnn_benchmark.modeling.rpn.fcos.fcos import build_fcos
 from .loss import make_rpn_loss_evaluator
 from .anchor_generator import make_anchor_generator
 from .inference import make_rpn_postprocessor
+from maskrcnn_benchmark.config import cfg
 
 
 class RPNHeadConvRegressor(nn.Module):
@@ -106,7 +107,86 @@ class RPNHead(nn.Module):
             logits.append(self.cls_logits(t))
             bbox_reg.append(self.bbox_pred_new(t))
         return logits, bbox_reg
+    
+@registry.RPN_ATT.register("FullAtt")
+class FullAtt(nn.Module):
+    """
+    Adds a simple RPN Attention Head
+    """
+    
+    def __init__(self, cfg, in_channels):
+        super(FullAtt, self).__init__()
+        
+        self.conv_att1 = nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)
+        self.conv_att2 = nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)
+        self.conv_att3 = nn.Conv2d(in_channels, 1, kernel_size=1, stride=1)
+        
+        self.conv_feat1 = nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)
+    
+    def att_loss(self, pred, targets):
+        for pred_single_img, targets_single_img in zip(pred, targets):
+            mask_obj = targets_single_img.get_field('masks')
+            masks = mask_obj.convert('mask').instances.masks
+            mask_single_img = torch.sum(masks, dim=0)
+            mask_single_img = mask_single_img > 0
+            
+            _, t_H, t_W = pred_single_img.shape
+        
+    def forward(self, x, t):
+        import ipdb;ipdb.set_trace()
+        att_map = []
+        features = []
+        att_loss = []
+        for feature in x:
+            f = F.relu(self.conv_att1(feature))
+            f_need = f
+            f = F.relu(self.conv_att2(f))
+            f = F.relu(self.conv_att3(f))
+            
+            self.att_loss(f, t)
+            att_map.append(f)
+            f2 = F.relu(self.conv_feat1(feature))
 
+            f2 *= torch.exp(torch.sigmoid(f))
+            f3 = f_need + f2
+            features.append(f3)
+        return features
+
+    
+@registry.RPN_ATT.register("SelfAtt")
+class SelfAtt(nn.Module):
+    """
+    Adds a simple RPN Attention Head
+    """
+    
+    def __init__(self, cfg, in_channels):
+        super(SelfAtt, self).__init__()
+        
+        self.conv_att1 = nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)
+        self.conv_att2 = nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)
+        self.conv_att3 = nn.Conv2d(in_channels, 1, kernel_size=1, stride=1)
+        self.conv_feat1 = nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)
+        
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight,
+                    mode='fan_out', nonlinearity='relu')
+                nn.init.constant_(m.bias, 0)
+        
+    def forward(self, x, t):
+        features = []
+        for feature in x:
+            f = F.relu(self.conv_att1(feature))
+            f_need = f
+            f = F.relu(self.conv_att2(f))
+            f = F.relu(self.conv_att3(f))
+            
+            f2 = F.relu(self.conv_feat1(feature))
+
+            f2 *= torch.sigmoid(f)
+            f3 = f_need + f2
+            features.append(f3)
+        return features
 
 class RPNModule(torch.nn.Module):
     """
@@ -122,6 +202,10 @@ class RPNModule(torch.nn.Module):
         anchor_generator = make_anchor_generator(cfg)
 
         rpn_head = registry.RPN_HEADS[cfg.MODEL.RPN.RPN_HEAD]
+        # import ipdb;ipdb.set_trace()
+        if cfg.MODEL.RPN_ATT.USE_ATT:
+            self.att_layer = registry.RPN_ATT[cfg.MODEL.RPN_ATT.RPN_ATT_HEAD](cfg, in_channels)
+            
         head = rpn_head(
             cfg, in_channels, anchor_generator.num_anchors_per_location()[0]
         )
@@ -133,11 +217,13 @@ class RPNModule(torch.nn.Module):
 
         loss_evaluator = make_rpn_loss_evaluator(cfg, rpn_box_coder)
 
+        self.att_on = cfg.MODEL.RPN_ATT.USE_ATT
         self.anchor_generator = anchor_generator
         self.head = head
         self.box_selector_train = box_selector_train
         self.box_selector_test = box_selector_test
         self.loss_evaluator = loss_evaluator
+        
 
     def forward(self, images, features, targets=None, prefix=''):
         """
@@ -154,7 +240,9 @@ class RPNModule(torch.nn.Module):
             losses (dict[Tensor]): the losses for the model during training. During
                 testing, it is an empty dict.
         """
-
+        if self.att_on:
+            features = self.att_layer(features, targets)
+        
         objectness, rpn_box_regression = self.head(features)
         
         anchors = self.anchor_generator(images, features)

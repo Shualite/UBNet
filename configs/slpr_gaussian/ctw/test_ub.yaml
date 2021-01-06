@@ -1,10 +1,10 @@
 # remark: ub_head make_roi_ub_predictor w_var w_points, mean=0, std=0.001
 DEBUG: True
-OUTPUT_DIR: "output/slpr_gaussian/ctw/baseline/"
+OUTPUT_DIR: "output/slpr_gaussian/ctw/baseline3/"
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
   # WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
-  WEIGHT: "output/slpr_gaussian/ctw/baseline/model_0045000.pth"
+  WEIGHT: "output/slpr_gaussian/ctw/baseline3/model_final.pth"
   
   STRICT: True
   BACKBONE:
@@ -47,7 +47,7 @@ MODEL:
     PREDICTOR: "UBRCNNPredictor"
     RESOLUTION: 7
     BORDER_RATIO: 65
-    UB_W_POINTS: 32
+    UB_W_POINTS: 16
     UB_H_POINTS: 16
     SHARE_BOX_FEATURE_EXTRACTOR: False
     BO_WEIGHT: 0.1

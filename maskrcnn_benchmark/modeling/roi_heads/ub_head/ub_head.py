@@ -103,7 +103,7 @@ class ROIUBHead(torch.nn.Module):
         #     proposals_on_image = proposals[0].visualize(img)
         #     writer.add_image('ub_image', proposals_on_image, global_step=10)
         #     writer.flush()
-
+        
         if self.use_conf:
             # enlarge proposals size
             proposals = self.random_shifter(proposals)
@@ -112,26 +112,20 @@ class ROIUBHead(torch.nn.Module):
         x = self.feature_extractor(features, proposals)
 
         if x.shape[0] == 0:
-            if self.use_gaussian:
-                return x, proposals, {}
-            else:
-                return x, proposals, {}, {}, {}
+            return x, proposals, {}
 
         predicted = self.predictor(x)
 
         if not self.training:
             result = self.post_processor(predicted, proposals, images)
-            if self.use_gaussian:
-                return x, result, {}
-            else:
-                return x, result, {}, {}, {}
+            return x, result, {}
 
-        ub_loss , ub_vertical_loss, ub_horizontal_loss = self.loss_evaluator(proposals, predicted, targets)
+        ub_loss = self.loss_evaluator(proposals, predicted, targets)
 
         if self.use_gaussian:
             return x, proposals, dict(loss_ub=ub_loss)
-
-        return x, proposals, dict(loss_ub=ub_loss), dict(loss_vertical=ub_vertical_loss), dict(loss_horizontal=ub_horizontal_loss)
+        else:
+            return x, proposals, dict(loss_slpr=ub_loss)
 
 
 def build_roi_ub_head(cfg, in_channels):

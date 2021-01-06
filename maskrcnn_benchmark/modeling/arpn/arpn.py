@@ -310,6 +310,7 @@ class RPNModule(torch.nn.Module):
             losses (dict[Tensor]): the losses for the model during training. During
                 testing, it is an empty dict.
         """
+        
         objectness, rpn_box_regression = self.head(features)
         anchors = self.anchor_generator(images, features)
 
@@ -319,6 +320,7 @@ class RPNModule(torch.nn.Module):
             return self._forward_test(anchors, objectness, rpn_box_regression)
 
     def _forward_train(self, anchors, objectness, rpn_box_regression, targets):
+        import ipdb;ipdb.set_trace()
         if self.cfg.MODEL.RPN_ONLY:
             # When training an RPN-only model, the loss is determined by the
             # predicted objectness and rpn_box_regression values and there is

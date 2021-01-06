@@ -45,20 +45,6 @@ class CombinedROIHeads(torch.nn.ModuleDict):
         #     writer.add_image('bbox_image', proposals_on_image, global_step=10)
         #     writer.flush()
 
-        
-        if self.cfg.MODEL.BOUNDARY_ON:
-            bo_features = features
-            if (
-                self.training
-                and self.cfg.MODEL.ROI_BOUNDARY_HEAD.SHARE_BOX_FEATURE_EXTRACTOR
-            ):
-                bo_features = x
-            # proposals include detections
-            x, detections, loss_bo, loss_bo_x, loss_bo_y = self.bound(bo_features, detections, targets)
-            losses.update(loss_bo)
-            losses.update(loss_bo_x)
-            losses.update(loss_bo_y)
-
         # import ipdb;ipdb.set_trace()
         if self.cfg.MODEL.UB_ON:
             ub_features = features
@@ -67,15 +53,10 @@ class CombinedROIHeads(torch.nn.ModuleDict):
                 and self.cfg.MODEL.ROI_UB_HEAD.SHARE_BOX_FEATURE_EXTRACTOR
             ):
                 ub_features = x
-            # proposals include detections
-            if self.use_gaussian:
-                x, detections, loss_ub = self.ub(ub_features, detections, targets, images)
-                losses.update(loss_ub)
-            else:
-                x, detections, loss_ub, loss_ub_vertical, loss_ub_horizontal = self.ub(ub_features, detections, targets)
-                losses.update(loss_ub)
-                losses.update(loss_ub_vertical)
-                losses.update(loss_ub_horizontal)
+                
+            x, detections, loss_ub = self.ub(ub_features, detections, targets, images)
+            losses.update(loss_ub)
+            
 
         losses = {prefix + k: losses[k] for k in losses}
 
@@ -93,8 +74,6 @@ def build_roi_heads(cfg, in_channels):
     
     if not cfg.MODEL.RPN_ONLY:
         roi_heads.append(("box", build_roi_box_head(cfg, in_channels)))
-    if cfg.MODEL.BOUNDARY_ON:
-        roi_heads.append(("bound", build_roi_boundary_head(cfg, in_channels)))
     if cfg.MODEL.UB_ON:
         roi_heads.append(("ub", build_roi_ub_head(cfg, in_channels)))
     # combine individual heads in a single module

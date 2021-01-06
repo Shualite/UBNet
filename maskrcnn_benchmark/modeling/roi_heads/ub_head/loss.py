@@ -366,9 +366,7 @@ class UBRCNNLossComputation(object):
 
         ub_loss = self.delta * (ub_vertical_loss + ub_horizontal_loss) / labels.numel()
         
-        # print(ub_vertical_loss)
-        # print(ub_horizontal_loss)
-        return ub_loss , ub_vertical_loss, ub_horizontal_loss
+        return ub_loss
 
 def make_roi_ub_loss_evaluator(cfg):
     matcher = Matcher(

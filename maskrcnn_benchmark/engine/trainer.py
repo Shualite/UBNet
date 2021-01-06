@@ -16,10 +16,9 @@ from maskrcnn_benchmark.config import cfg
 from maskrcnn_benchmark.utils.comm import synchronize, get_rank
 from maskrcnn_benchmark.utils.miscellaneous import mkdir
 
-from apex import amp
+# from apex import amp
 
 from tensorboardX import SummaryWriter
-writer = SummaryWriter('./debug/param')
 
 def reduce_loss_dict(loss_dict):
     """
@@ -57,7 +56,8 @@ def do_train(
     arguments,
     distributed,
     eval_period=-1,
-):
+):  
+    
     logger = logging.getLogger("maskrcnn_benchmark.trainer")
     logger.info("Start training")
     meters = MetricLogger(delimiter="  ")
@@ -76,10 +76,12 @@ def do_train(
                 mkdir(output_folder)
                 output_folders[idx] = output_folder
         data_loaders_val = make_data_loader(
-            cfg, 
+            cfg,
             is_train=False, 
             is_distributed=distributed)
 
+    
+    writer_loss = SummaryWriter(os.path.join(cfg.OUTPUT_DIR, 'tensorboard_loss'))
 
     max_iter = len(data_loader)
     start_iter = arguments["iteration"]
@@ -190,6 +192,16 @@ def do_train(
                     memory=torch.cuda.max_memory_allocated() / 1024.0 / 1024.0,
                 )
             )
+            
+            if writer_loss is not None:
+                if 'loss_objectness' in meters.meters.keys() and 'loss_rpn_box_reg' in meters.meters.keys():
+                    writer_loss.add_scalars('rpn', {'cls': meters.meters['loss_objectness'].median, 'reg': meters.meters['loss_rpn_box_reg'].median}, iteration)
+                if 'loss_classifier' in meters.meters.keys() and 'loss_box_reg' in meters.meters.keys():
+                    writer_loss.add_scalars('boxhead', {'cls': meters.meters['loss_classifier'].median, 'reg': meters.meters['loss_box_reg'].median}, iteration)
+                # if 'loss_ub' in meters.meters.keys():
+                #     writer_loss.add_scalar('ubhead', meters.meters['loss_ub'].median, iteration)
+                    
+                writer_loss.flush()
 
             del meters
             meters = MetricLogger(delimiter="  ")
@@ -224,3 +236,4 @@ def do_train(
             total_time_str, total_training_time / (max_iter)
         )
     )
+    writer_loss.close()

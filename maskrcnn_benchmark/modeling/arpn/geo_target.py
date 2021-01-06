@@ -210,9 +210,8 @@ def make_target_rbox_mc(imshape, scale, box_in_4pts, rboxes, seq_labels, dense_r
 
 def get_heatmap_rbox(gt_boxes, imshape, stride, proportion=0.7):
     # gt_boxes_4pts:[n, (lt, rt, rb, lb) * (x, y)] gt box pts in anti-clock order within 8 channels
-
     cls_num = 1
-    fill_mask_ori = np.zeros((math.ceil(imshape[0]), math.ceil(imshape[1])))
+    fill_mask_ori = np.zeros((int(math.ceil(imshape[0])), int(math.ceil(imshape[1]))))
     # print("fill_mask_ori:", fill_mask_ori.shape)
     mask_stack = []
     if len(gt_boxes) < 1:

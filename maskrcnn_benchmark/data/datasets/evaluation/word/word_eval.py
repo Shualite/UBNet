@@ -65,7 +65,7 @@ def do_coco_evaluation(
         logger.info("Preparing ub results")
         coco_results["ub"] = prepare_for_ub_regression(predictions, dataset)
     logger.info("Do not apply evaluating predictions")
-
+    # import ipdb;ipdb.set_trace()
     for iou_type in iou_types:
         with tempfile.NamedTemporaryFile() as f:
             file_path = f.name
@@ -530,7 +530,76 @@ def polar_group(center, result_points_after_var, var):
     
     return result_points_after_var[index], var[index]
 
-def ub_to_contour_ic(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None, ub_h_var=None):
+def ub_to_contour_ic(ub_w, ub_h, path, img_info, num, p_temp_box):
+    ratio = 12
+
+    border_w = cfg.MODEL.ROI_UB_HEAD.UB_W_POINTS
+    border_h = cfg.MODEL.ROI_UB_HEAD.UB_H_POINTS
+    border_len = cfg.MODEL.ROI_UB_HEAD.BORDER_RATIO
+    w_stride, h_stride = border_len//border_w, border_len//border_h
+
+    img = cv2.imread(path)
+    vis_box = p_temp_box.int()
+    border_map = np.zeros([border_len*ratio, border_len*ratio, 3], dtype=np.uint8)
+    # vis margin
+    MARGIN = 100
+    border_map= cv2.copyMakeBorder(border_map ,MARGIN ,MARGIN ,MARGIN ,MARGIN ,cv2.BORDER_CONSTANT, value=(255,255,255))
+
+    crop_img = img[vis_box[1]:vis_box[3], vis_box[0]:vis_box[2],:].copy()
+    crop_img = cv2.resize(crop_img, (border_len*ratio, border_len*ratio), interpolation = cv2.INTER_AREA)
+    crop_img= cv2.copyMakeBorder(crop_img ,MARGIN ,MARGIN ,MARGIN ,MARGIN ,cv2.BORDER_CONSTANT, value=(255,255,255))
+    crop_img = np.array(crop_img, dtype=np.uint8)
+
+
+    ori_h, ori_w = float(img_info['height']), float(img_info['width'])
+    box_h, box_w = float(p_temp_box[3]-p_temp_box[1]), float(p_temp_box[2]-p_temp_box[0])
+    
+    result_points = []
+    vert_points = []
+    hori_points = []
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    for idx, i in enumerate(range(border_len)[::w_stride]):
+        top, down = ub_w[idx]
+        top, down = int(top*border_len), int((1-down)*border_len)
+        
+        if top < down:
+            result_points.insert(0, [i, down])
+            result_points.append([i, top])
+            
+        
+        vert_points.append([i, top])
+        vert_points.append([i, down])
+
+    result_points = np.array(result_points)
+    result_points = result_points * (box_w/border_len, box_h/border_len)
+    result_points = result_points + np.array(p_temp_box[:2])
+
+    for idx, j in enumerate(range(border_len)[::h_stride]):
+        left, right = ub_h[idx]
+        left, right = int(left*border_len), int((1-right)*border_len)
+
+        hori_points.append([left, j])
+        hori_points.append([right, j])
+
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    crop_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB)
+    # border_map = cv2.cvtColor(border_map, cv2.COLOR_BGR2RGB)
+    
+
+    img = img.transpose((2,0,1))
+    crop_img = crop_img.transpose((2,0,1))
+    border_map = border_map.transpose((2,0,1))
+    
+    if cfg.DEBUG:
+        if num==0:
+            writer.add_image(path.split('/')[-1], img, global_step=num)
+        writer.add_image(path.split('/')[-1].split('.')[0]+'_box', crop_img, global_step=num)
+        # writer.add_image(path.split('/')[-1].split('.')[0]+'_ub', border_map, global_step=num)
+        writer.flush()
+
+    return result_points.reshape(-1)
+
+def ub_to_contour_ic_gaussian(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None, ub_h_var=None):
     ratio = 12
     vis_w_var = torch.pow(torch.exp(ub_w_var), ratio) * ratio
     vis_h_var = torch.pow(torch.exp(ub_h_var), ratio) * ratio
@@ -617,6 +686,7 @@ def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None
     HORIZONTAL = 0
     VERTICAL = 1
     
+    
     ratio = 12
     if ub_w_var is not None:
         vis_w_var = torch.pow(torch.exp(ub_w_var), ratio) * ratio
@@ -651,16 +721,16 @@ def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None
     font = cv2.FONT_HERSHEY_SIMPLEX
     
     # orient perception by var
-    orient = HORIZONTAL if vis_w_var.mean() <= vis_h_var.mean() else VERTICAL
-    center = None
-    if orient == HORIZONTAL:
-        top, down = ub_w[border_w//2]
-        top, down = int(top*border_len), int((1-down)*border_len)
-        center = [border_len//2, (top+down)//2]
-    else:
-        left, right = ub_h[border_w//2]
-        left, right = int(left*border_len), int((1-right)*border_len)
-        center = [(left+right)//2, border_len//2]
+    # orient = HORIZONTAL if vis_w_var.mean() <= vis_h_var.mean() else VERTICAL
+    # center = None
+    # if orient == HORIZONTAL:
+    #     top, down = ub_w[border_w//2]
+    #     top, down = int(top*border_len), int((1-down)*border_len)
+    #     center = [border_len//2, (top+down)//2]
+    # else:
+    #     left, right = ub_h[border_w//2]
+    #     left, right = int(left*border_len), int((1-right)*border_len)
+    #     center = [(left+right)//2, border_len//2]
         
         
     for idx, i in enumerate(range(border_len)[::w_stride]):
@@ -714,15 +784,15 @@ def ub_to_contour_ctw(ub_w, ub_h, path, img_info, num, p_temp_box, ub_w_var=None
     # hori_points = hori_points * (box_w/border_len, box_h/border_len)
     
     
-    points_with_var = np.array(points_with_var)
-    result_points_after_var, var = sort_by_var(points_with_var, 0.7)
-    # import ipdb;ipdb.set_trace()
-    # TODO: sort error
-    result_points_after_var, var = polar_group(center, result_points_after_var, var)
-    [cv2.circle(crop_img_var, tuple(np.array((pp[0]*ratio+MARGIN, pp[1]*ratio+MARGIN), dtype=np.int)), int(np.power(np.exp(vv), ratio) * ratio), (0,255,0), 2) for pp, vv in zip(result_points_after_var, var)]
+    # points_with_var = np.array(points_with_var)
+    # result_points_after_var, var = sort_by_var(points_with_var, 0.7)
+    # # import ipdb;ipdb.set_trace()
+    # # TODO: sort error
+    # result_points_after_var, var = polar_group(center, result_points_after_var, var)
+    # [cv2.circle(crop_img_var, tuple(np.array((pp[0]*ratio+MARGIN, pp[1]*ratio+MARGIN), dtype=np.int)), int(np.power(np.exp(vv), ratio) * ratio), (0,255,0), 2) for pp, vv in zip(result_points_after_var, var)]
     
-    result_points_after_var = result_points_after_var * (box_w/border_len, box_h/border_len)
-    result_points_after_var = result_points_after_var + np.array(p_temp_box[:2])
+    # result_points_after_var = result_points_after_var * (box_w/border_len, box_h/border_len)
+    # result_points_after_var = result_points_after_var + np.array(p_temp_box[:2])
     
     
     # crop_img = img[vis_box[1]:vis_box[3], vis_box[0]:vis_box[2],:]
@@ -779,10 +849,13 @@ def prepare_for_ub_regression(predictions, dataset):
             ub_h_var = prediction.get_field('ub_h_var')
             ub_w_var = prediction.get_field('ub_w_var')
 
-
         if 'ic15' in cfg.DATASETS.TEST[0]:
-            contours = [ub_to_contour_ic(ub_w_single, ub_h_single, os.path.join(dataset.root, dataset.coco.imgs[original_id]["file_name"]), dataset.coco.imgs[original_id], number, p_temp, ub_w_var_single, ub_h_var_single) for
+            if GAUSSIAN:
+                contours = [ub_to_contour_ic_gaussian(ub_w_single, ub_h_single, os.path.join(dataset.root, dataset.coco.imgs[original_id]["file_name"]), dataset.coco.imgs[original_id], number, p_temp, ub_w_var_single, ub_h_var_single) for
                     ub_w_single, ub_h_single, number, p_temp, ub_w_var_single, ub_h_var_single in zip(ub_w, ub_h, list(range(ub_w.shape[0])), prediction.bbox, ub_w_var, ub_h_var)]
+            else:
+                contours = [ub_to_contour_ic(ub_w_single, ub_h_single, os.path.join(dataset.root, dataset.coco.imgs[original_id]["file_name"]), dataset.coco.imgs[original_id], number, p_temp) for
+                        ub_w_single, ub_h_single, number, p_temp in zip(ub_w, ub_h, list(range(ub_w.shape[0])), prediction.bbox)]
         elif 'CTW' in cfg.DATASETS.TEST[0]:
             if GAUSSIAN:
                 contours = [ub_to_contour_ctw(ub_w_single, ub_h_single, os.path.join(dataset.root, dataset.coco.imgs[original_id]["file_name"]), dataset.coco.imgs[original_id], number, p_temp, ub_w_var_single, ub_h_var_single) for
@@ -1038,7 +1111,8 @@ def evaluate_predictions_on_coco(
     import json
     import sys
     # from StringIO import StringIO
-    from io import StringIO
+    # from io import StringIO
+    # from io import BytesIO as StringIO
 
     print('writing results to ' + json_result_file)
     with open(json_result_file, "w") as f:
@@ -1052,19 +1126,16 @@ def evaluate_predictions_on_coco(
         coco_eval.evaluate()
         coco_eval.accumulate()
 
-        original_stdout = sys.stdout
-        string_stdout = StringIO()
-        sys.stdout = string_stdout
+        # original_stdout = sys.stdout
+        # string_stdout = StringIO()
+        # sys.stdout = string_stdout
         coco_eval.summarize()
-        sys.stdout = original_stdout
-
+        # sys.stdout = original_stdout
         mean_ap = coco_eval.stats[0].item()  # stats[0] records AP@[0.5:0.95]
-        detail = string_stdout.getvalue()
+        # detail = string_stdout.getvalue()
 
         print(mean_ap)
-        print(detail)
-
-        # coco_eval.summarize()
+        # print(detail)
         return mean_ap
     else:
         return None

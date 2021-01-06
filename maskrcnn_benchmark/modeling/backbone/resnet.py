@@ -21,8 +21,12 @@ from collections import namedtuple
 import torch
 import torch.nn.functional as F
 from torch import nn
+from maskrcnn_benchmark.config import cfg
 
+# from torch.nn import SyncBatchNorm as FrozenBatchNorm2d
+# TODO: SYNC BN Using
 from maskrcnn_benchmark.layers import FrozenBatchNorm2d
+
 from maskrcnn_benchmark.layers import Conv2d
 from maskrcnn_benchmark.modeling.make_layers import group_norm
 from maskrcnn_benchmark.layers import DCN
@@ -85,7 +89,6 @@ class ResNet(nn.Module):
         # If we want to use the cfg in forward(), then we should make a copy
         # of it and store it for later use:
         # self.cfg = cfg.clone()
-
         # Translate string names to implementations
         stem_module = _STEM_MODULES[cfg.MODEL.RESNETS.STEM_FUNC]
         stage_specs = _STAGE_SPECS[cfg.MODEL.BACKBONE.CONV_BODY]

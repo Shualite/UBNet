@@ -1,12 +1,12 @@
 # remark: ub_head make_roi_ub_predictor w_var w_points, mean=0, std=0.001
-DEBUG: True
-OUTPUT_DIR: "output/slpr/"
+DEBUG: False
+OUTPUT_DIR: "output/slpr_gaussian/totaltext/baseline/"
 MODEL:
   META_ARCHITECTURE: "GeneralizedRCNN"
   WEIGHT: "catalog://ImageNetPretrained/MSRA/R-50"
   # WEIGHT: "output/debug2/model_0011630.pth"
-  # WEIGHT: "output/new_baseline/model_0030000.pth"
-  STRICT: False
+  # WEIGHT: "output/slpr_gaussian/ctw/baseline/model_0020000.pth"
+  STRICT: True
   BACKBONE:
     CONV_BODY: "R-50-FPN"
   RESNETS:
@@ -33,11 +33,11 @@ MODEL:
     PREDICTOR: "FPNPredictor"
     NUM_CLASSES: 2
     CLASS_WEIGHT: 1.0
-    
+
   ## uncertainty border estimation
   UB_ON: True
   ROI_UB_HEAD:
-    GAUSSIAN: False
+    GAUSSIAN: True
     CONF: False
     DEFORMABLE_POOLING: True
     FEATURE_EXTRACTOR: "UBRCNNFPNFeatureExtractor"
@@ -47,7 +47,7 @@ MODEL:
     PREDICTOR: "UBRCNNPredictor"
     RESOLUTION: 7
     BORDER_RATIO: 65
-    UB_W_POINTS: 32
+    UB_W_POINTS: 16
     UB_H_POINTS: 16
     SHARE_BOX_FEATURE_EXTRACTOR: False
     BO_WEIGHT: 0.1
@@ -58,21 +58,20 @@ PROCESS:
   PNMS: True
   NMS_THRESH: 0.25
 DATASETS:
-  TRAIN: ("CTW1500_train",)
-  TEST: ("CTW1500_test",)
+  TRAIN: ("totaltext_train",)
+  TEST: ("totaltext_test",)
   Test_Visual: True
 DATALOADER:
   SHUFFLE: False
   NUM_WORKERS: 8
   SIZE_DIVISIBILITY: 32
 SOLVER:
-  # GRADIENT_CLIP: 10
-  # gpu num = 2
-  BASE_LR: 0.005
+  GRADIENT_CLIP: 1.0
+  BASE_LR: 0.001
   BIAS_LR_FACTOR: 2
   WEIGHT_DECAY: 0.0001
-  STEPS: (20000, 25000)
-  MAX_ITER: 30000
+  STEPS: (20000, 30000)
+  MAX_ITER: 40000
   IMS_PER_BATCH: 2
   CHECKPOINT_PERIOD: 5000
   EVAL_PERIOD: 1000
@@ -89,3 +88,5 @@ INPUT:
 
 TEST:
   IMS_PER_BATCH: 2
+  VIS_LOTM : False
+  VIS_DIR : "debug/vis_ctw_LOTM4"

@@ -40,6 +40,7 @@ maskrcnn_benchmark/data/datasets/coco.py
 maskrcnn_benchmark/data/datasets/concat_dataset.py
 maskrcnn_benchmark/data/datasets/list_dataset.py
 maskrcnn_benchmark/data/datasets/rotated_word_dataset.py
+maskrcnn_benchmark/data/datasets/rrpn_e2e_series.py
 maskrcnn_benchmark/data/datasets/voc.py
 maskrcnn_benchmark/data/datasets/word_dataset.py
 maskrcnn_benchmark/data/datasets/evaluation/__init__.py
@@ -47,6 +48,7 @@ maskrcnn_benchmark/data/datasets/evaluation/word/__init__.py
 maskrcnn_benchmark/data/datasets/evaluation/word/alfashape.py
 maskrcnn_benchmark/data/datasets/evaluation/word/area_of_polygon.py
 maskrcnn_benchmark/data/datasets/evaluation/word/io_.py
+maskrcnn_benchmark/data/datasets/evaluation/word/rword_eval.py
 maskrcnn_benchmark/data/datasets/evaluation/word/word_eval.py
 maskrcnn_benchmark/data/datasets/evaluation/word/util/__init__.py
 maskrcnn_benchmark/data/datasets/evaluation/word/util/caffe_.py
